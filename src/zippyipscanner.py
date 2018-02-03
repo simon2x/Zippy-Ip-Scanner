@@ -140,13 +140,10 @@ class BaseList(wx.ListCtrl, ListCtrlAutoWidthMixin):
             logging.info("Deleted image from list: %s" % str(item))
             self.DeleteItem(item)
 
-class Main(wx.Frame):
+class MainFrame(wx.Frame):
     
     def __init__(self):
-        wx.Frame.__init__(self,
-                          None,
-                          wx.ID_ANY,
-                          title='Zippy IP Scanner 2017')
+        wx.Frame.__init__(self, None, title='Zippy IP Scanner 2017')
                 
         self._menus = {}
         self._btns = {}
@@ -443,7 +440,12 @@ class Main(wx.Frame):
         
         event.Skip()
         
+class Main(wx.App):
+
+    def __init__(self):
+        wx.App.__init__(self)
+        frame = MainFrame()
+        
 if __name__ == "__main__":
-    app = wx.App()
-    frame = Main()
+    app = Main()
     app.MainLoop()
