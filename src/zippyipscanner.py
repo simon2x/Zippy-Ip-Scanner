@@ -68,8 +68,6 @@ logger = logging.getLogger(__name__)
 PROCESS_COUNT = multiprocessing.cpu_count() - 1
 PLATFORM = platform.system().lower()
 
-# logging.
-
 class ConfirmDialog(wx.Dialog):
 
     def __init__(self, parent, message):
@@ -100,7 +98,6 @@ class ConfirmDialog(wx.Dialog):
         else:
             self.EndModal(wx.ID_NO)
             
-# inherited list class
 class BaseList(wx.ListCtrl, ListCtrlAutoWidthMixin):
     
     def __init__(self, parent):
@@ -438,9 +435,6 @@ class Main(wx.Frame):
         self.ip_list.DeleteAllItems()
         for x in sorted_x:
             self.ip_list.Append(x)
-                    
-        
-#end OnButton def
 
     def OnClose(self, event):
         """ save settings before quitting """
@@ -449,10 +443,6 @@ class Main(wx.Frame):
         
         event.Skip()
         
-#end OnClose def
- 
-#end Main class
-
 if __name__ == "__main__":
     app = wx.App()
     frame = Main()
