@@ -101,10 +101,14 @@ class CheckForUpdates(wx.Frame):
         
         u = "https://raw.githubusercontent.com/swprojects/Zippy-Ip-Scanner/master/RELEASES"
         req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
-        result = urllib.request.urlopen(req).read().decode("utf-8")
-        result = result.split("\n")
-        ver, url = result[0].split(",")
-        print(ver, url)
-        self.link.SetLabel(ver)
-        self.link.SetURL(url)
+        try:
+            result = urllib.request.urlopen(req).read().decode("utf-8")
+            result = result.split("\n")
+            ver, url = result[0].split(",")
+            print(ver, url)
+            self.link.SetLabel(ver)
+            self.link.SetURL(url)
+        except Exception as e:
+            pass   
+            
         self.btnCheck.SetLabel("Check")
