@@ -16,65 +16,81 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 
 import json
-import multiprocessing
-from multiprocessing.pool import ThreadPool
-from multiprocessing.dummy import Pool as ThreadPool 
 import logging
+import os
 import platform
 import re
-import requests
+import urllib.request
 import socket
 import subprocess
 import time
 import threading
-import wx
-from wx.lib.pubsub import setuparg1
-from wx.lib.pubsub import pub
 
-PROCESS_COUNT = multiprocessing.cpu_count() - 1
-# PROCESS_COUNT = multiprocessing.cpu_count() - 1
-PLATFORM = platform.system().lower()
-
-def GetHostByAddress(address):
-    # return 
+def GetHostByAddress(address, hostname):
     try:
-        hostname = socket.gethostbyaddr(address)[0]
+        hostname.append(socket.gethostbyaddr(address)[0])
     except socket.herror:
-        hostname = "n/a"
+        hostname.append("n/a")
     
-    logging.info("address: %s, host: %s" % (address,hostname))
-
-    return hostname
+class LookupHostname(threading.Thread):
     
-def LookupHostnames(addresses):
-    # lookup hostnames of all IP addresses
-    hostnames = []
-    for index, address in enumerate(addresses):
-        print(index, address)
-        pool = ThreadPool(100) 
-        res = pool.apply_async(GetHostByAddress, args=(address,))
+    def __init__(self, address, buffer, timeout):
+        threading.Thread.__init__(self)
+        
+        self._finished = None
+        self._beginCheck = None
+        self._timeout = timeout
+        # lookup hostnames of IP address
+        self.address = address
+        self.hostname = buffer
+        self.daemon = True
+        # self.start()
+        # n = 0
+        # while n < timeout:
+            # if hostname:
+                # return hostname[0]
+            # n += 0.1
+            # time.sleep(0.1)
+        
+        # return ""
+        
+    @property
+    def beginCheck(self):
+        return self._beginCheck
+        
+    @beginCheck.setter
+    def beginCheck(self, value):
+        if value is True:
+            self._beginCheck = True
+            self.start()
+            
+    @property
+    def timeout(self):
+        return self._timeout
+        
+    @timeout.setter
+    def timeout(self, value):
+        timeout = value
+        if value <= 0:
+            self.finished = True    
+            
+    @property
+    def finished(self):
+        if self.hostname == []:
+            self.hostname.append("t/o")
+        return self._finished
+        
+    @finished.setter
+    def finished(self, value):
+        self._finished = value   
+        
+    def run(self):
         try:
-            hostname = res.get(0.01)  # Wait timeout seconds for func to complete.
-            hostnames.append((index, hostname))
-        except multiprocessing.TimeoutError:
-            print("Aborting hostname lookup due to timeout")
-            # pool.terminate()
-            continue
-    
-    return hostnames
-    
-def LookupHostname(address):
-    # lookup hostnames of all IP addresses
-    pool = ThreadPool(1) 
-    res = pool.apply_async(GetHostByAddress, args=(address,))    
-    try:
-        hostname = res.get(0.01)  # Wait timeout seconds for func to complete.       
-    except multiprocessing.TimeoutError:
-        print("Aborting hostname lookup due to timeout")
-        # pool.terminate()
-        hostname = ""
-
-    return hostname
+            self.hostname.append(socket.gethostbyaddr(self.address)[0])
+        except socket.herror:
+            self.hostname.append("n/a")
+        
+        self._finished = True
     
 def LookupMacAddress(address):
 
@@ -88,8 +104,18 @@ def LookupMacAddress(address):
         arp_cmd = ['arp', '-a']
     else:
         arp_cmd = ['arp', '-n']
-    
-    pid = subprocess.Popen(arp_cmd + [address], stdout=subprocess.PIPE)
+        
+    info = None
+    # Configure subprocess to hide the console window
+    if os.name == 'nt':
+        info = subprocess.STARTUPINFO()
+        info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        info.wShowWindow = subprocess.SW_HIDE
+            
+    pid = subprocess.Popen(arp_cmd + [address], 
+                           stdin=subprocess.PIPE,
+                           stderr=subprocess.PIPE,
+                           stdout=subprocess.PIPE, startupinfo=info)
     out = pid.communicate()[0]
     
     MAC_RE = re.compile(r'(([a-f\d]{1,2}[:-]){5}[a-f\d]{1,2})')
@@ -106,48 +132,62 @@ def LookupMacAddress(address):
     
 def LookupManufacturers(mac):
     """ request from macvendors.co """
-    mac_url = 'http://macvendors.co/api/%s'
-    print(mac_url % mac)
-    r = requests.get(mac_url % mac)
-    logging.info("request URL: %s" % r.text)
-    result = r.json()["result"]
-    mfn = result["company"]
+    macUrl = 'http://macvendors.co/api/{0}'.format(mac)    
+    req = urllib.request.Request(macUrl, headers={'User-Agent': 'Mozilla/5.0'})
+    result = urllib.request.urlopen(req).read()
+    result = result.decode("utf-8")
+   
+    print(result)
+    # logging.info("request URL: %s" % r.text)
+    result = json.loads(result)["result"]
     
-    return mfn
-
+    print(result)
+    try:
+        mfn = result["company"]
+        return mfn
+    except:
+        return ""
+        
 class PingAddress(threading.Thread):
     
-    def __init__(self, addresses):
+    def __init__(self, addresses, addressResults, stopThread, scanParams):
         
         threading.Thread.__init__(self)
         
-        self._stop = False
-        pub.subscribe(self.stop, "PingAddress.stop")
+        self.scanParams = scanParams
+        self._stopThread = stopThread
+        self._addressResults = addressResults
         
         self._addresses = addresses
         self.start()
         
-    def stop(self, msg=None):
-        self._stop = True
-        logging.info("Killing thread: PingAddress")
-        
     def run(self):    
         
+        info = None
         # Configure subprocess to hide the console window
-        info = subprocess.STARTUPINFO()
-        info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        info.wShowWindow = subprocess.SW_HIDE
+        if os.name == 'nt':
+            info = subprocess.STARTUPINFO()
+            info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            info.wShowWindow = subprocess.SW_HIDE
         
         for index, address in enumerate(self._addresses):
         
-            if self._stop:
+            if self._stopThread == [True]:
                 return
             
             # For each IP address in the subnet, 
             # run the ping command with subprocess.popen interface
             address = str(address)
-            cmd = ['ping', '-n', '1', '-w', '500', address]
-            output = subprocess.Popen(cmd, stdout=subprocess.PIPE, startupinfo=info).communicate()[0]
+            if platform.system() == 'Windows':
+                cmd = ['ping', '-n', '1', '-w', '500', address]
+            elif platform.system() == 'Linux':
+                cmd = ['ping', '-c', '1', '-w', '1', address]
+    
+            output = subprocess.Popen(cmd, 
+                                      stdin=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
+                                      startupinfo=info).communicate()[0]
             output = output.decode('utf-8')
             
             # parse TTL and response time (ms)
@@ -157,40 +197,54 @@ class PingAddress(threading.Thread):
             mfn = ""
             hostname = ""
             status = "Offline"
-            if PLATFORM == "windows":
-            
+            if platform.system() == 'Windows':
                 if "Destination host unreachable" in output:
                     pass                 
                 elif "Request timed out" in output:
-                    mac = LookupMacAddress(address)
-                    mfn = LookupManufacturers(mac)
+                    if self.scanParams["MAC Address"] is True:
+                        mac = LookupMacAddress(address)
+                        
+                    if self.scanParams["Manufacturer"] is True:
+                        mfn = LookupManufacturers(mac)
                 else:
                     status = "Online"
+                    ttlStart = output.index("TTL=")
+                    ttlEnd = output.index("\r\n\r\nPing statistics")
+                    ttl = output[ttlStart+len("TTL="):ttlEnd]
+                    msStart = output.index("Average = ")
+                    ms = output[msStart+len(("Average = ")):]
                     
-                    ttl_start = output.index("TTL=")
-                    ttl_end = output.index("\r\n\r\nPing statistics")
-                    
-                    ttl = output[ttl_start+len("TTL="):ttl_end]
-                    
-                    ms_start = output.index("Average = ")
-                    ms = output[ms_start+len(("Average = ")):]
-                    
+            if platform.system() == 'Linux':   
+                if "ttl=" in output:
+                    status = "Online"
+                    ttlStart = output.index("ttl=")
+                    ttlEnd = output.index(" time=")
+                    ttl = output[ttlStart+len("ttl="):ttlEnd]
+                    msStart = output.index("time=")
+                    msEnd = output.index(" ms") 
+                    ms = output[msStart+len("time="):msEnd]
+           
+            if status == "Online":
+                if self.scanParams["MAC Address"] is True:
                     mac = LookupMacAddress(address)
+                
+                if self.scanParams["Manufacturer"] is True:
                     mfn = LookupManufacturers(mac)
-                    
-                    # hostname = LookupHostname(address)
+                
+                # if self.scanParams["Hostname"] is True:
+                    # hostname = LookupHostname(address, self.scanParams["hostnameTimeout"])
                     
             params = {}
-            params["index"] = index
-            params["address"] = address
-            params["ms"] = ms
-            params["ttl"] = ttl
-            params["mfn"] = mfn
-            params["mac"] = mac
-            params["status"] = status
-            params["hostname"] = hostname
-            wx.CallAfter(pub.sendMessage, "main.InsertAddress", params)
-
-        # wx.CallAfter(pub.sendMessage, "main.GetHostNames", "")
+            # params["index"] = index
+            params["IP Address"] = address
+            params["Ping"] = ms
+            params["TTL"] = ttl
+            params["Manufacturer"] = mfn
+            params["MAC Address"] = mac
+            # params["status"] = status
+            # params["Hostname"] = hostname
+            self._addressResults.append(params)
+            
+        self._stopThread.append(True)
         
 #end class PingAddress
