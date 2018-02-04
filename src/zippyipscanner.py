@@ -18,11 +18,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 
 import csv
+import base
 import functions
 import json
 import logging
-import ipaddress
-import multiprocessing
 import platform
 import queue
 import os
@@ -31,19 +30,12 @@ import subprocess
 import threading
 import time
 import wx
-
-# wx modules
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-from wx.lib.pubsub import setuparg1
-from wx.lib.pubsub import pub
-
-queue = queue.Queue()
-
-# python 2 to 3 compatibility
-try:
-    range
-except:
-    range = xrange    
+from version import __version__
+from collections import OrderedDict
+from about import AboutDialog
+from updatechecker import CheckForUpdates
+from splashscreen import SplashScreen
 
 #----- logging -----#
 
