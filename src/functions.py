@@ -134,9 +134,13 @@ def LookupManufacturers(mac):
     """ request from macvendors.co """
     macUrl = 'http://macvendors.co/api/{0}'.format(mac)    
     req = urllib.request.Request(macUrl, headers={'User-Agent': 'Mozilla/5.0'})
-    result = urllib.request.urlopen(req).read()
-    result = result.decode("utf-8")
-   
+    try:
+        result = urllib.request.urlopen(req).read()
+        result = result.decode("utf-8")
+    except Exception as e:
+        print(e)
+        return ""
+    
     print(result)
     # logging.info("request URL: %s" % r.text)
     result = json.loads(result)["result"]
@@ -206,6 +210,8 @@ class PingAddress(threading.Thread):
                         
                     if self.scanParams["Manufacturer"] is True:
                         mfn = LookupManufacturers(mac)
+                elif "General failure" in output: 
+                    pass
                 else:
                     status = "Online"
                     ttlStart = output.index("TTL=")
