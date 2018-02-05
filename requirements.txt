@@ -1,1 +1,1 @@
-wxPython
+https://extras.wxpython.org/wxPython4/extras/4.01/
