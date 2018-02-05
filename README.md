@@ -19,7 +19,7 @@ Zippy Ip Scanner is a free, open-source cross-platform IP scanning application w
 
 <img align="center" src="resources/images/screen2.png?raw=true"/>
 
-<img align="center" src="resources/images/screen2.png?raw=true"/>
+<img align="center" src="resources/images/screen3.png?raw=true"/>
 
 At the moment, only portable builds are available on linux 64-bit. Check the ```src/zippyscanner64 - portable.spec```
 file.
