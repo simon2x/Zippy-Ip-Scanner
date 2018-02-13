@@ -22,6 +22,7 @@ from license import __license__
 import os
 import wx
 from wx.lib.agw import hyperlink
+from portable import resource_path
 
 class AboutDialog(wx.Frame):
 
@@ -79,7 +80,7 @@ class AboutDialog(wx.Frame):
         self.Show()
         
         try:
-            self.SetIcon(wx.Icon("icon.ico"))
+            self.SetIcon(wx.Icon(resource_path("icon.ico")))
         except:
             pass
         self.Bind(wx.EVT_CHAR_HOOK, self.OnChar)

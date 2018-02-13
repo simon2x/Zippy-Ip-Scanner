@@ -36,6 +36,7 @@ from collections import OrderedDict
 from about import AboutDialog
 from updatechecker import CheckForUpdates
 from splashscreen import SplashScreen
+from portable import resource_path
 
 #----- logging -----#
 logging.basicConfig(level=logging.INFO)
@@ -188,7 +189,7 @@ class MainFrame(wx.Frame):
         self.timerHostTimeout.Start(1000)
         
         try:
-            self.SetIcon(wx.Icon("icon.ico"))
+            self.SetIcon(wx.Icon(resource_path("icon.ico")))
         except:
             pass
             
@@ -593,7 +594,7 @@ class MainFrame(wx.Frame):
             
     def SetupBitmaps(self):
         for label in ["start", "stop"]:
-            image = wx.Image("images/{0}.png".format(label))
+            image = wx.Image(resource_path("images/{0}.png".format(label)))
             image.Rescale(24,24)
             self._bitmaps[label] = wx.Bitmap(image)
         
