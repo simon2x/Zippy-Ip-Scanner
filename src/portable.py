@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*
 """
 @author Simon Wu <swprojects@runbox.com>
 Copyright (c) 2018 by Simon Wu <Zippy Ip Scanner>
@@ -17,16 +15,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 """
 
-import wx.adv
-from portable import resource_path
+import sys
+import os
 
-class SplashScreen(wx.adv.SplashScreen):
-        
-    def __init__(self, timeout=800):  
-        splash_style = wx.adv.SPLASH_CENTRE_ON_SCREEN|wx.adv.SPLASH_TIMEOUT
-        try:
-            bmp = wx.Bitmap(resource_path("splash.png"))
-        except:
-            return
-        
-        wx.adv.SplashScreen.__init__(self, bmp, splash_style, timeout, None)   
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)

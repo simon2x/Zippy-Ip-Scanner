@@ -22,6 +22,7 @@ import urllib.request
 import wx
 from wx.lib.agw import hyperlink
 from threading import Thread
+from portable import resource_path
 
 baseUrl = "https://sourceforge.net/projects/zippy-ip-scanner/files/"
 
@@ -79,7 +80,7 @@ class CheckForUpdates(wx.Frame):
         self.Center()        
         
         try:
-            self.SetIcon(wx.Icon("icon.ico"))
+            self.SetIcon(wx.Icon(resource_path("icon.ico")))
         except:
             pass
         self.Bind(wx.EVT_CHAR_HOOK, self.OnChar)
