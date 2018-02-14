@@ -71,6 +71,8 @@ class MainFrame(wx.Frame):
         self.scanTotalCount = 0
         self.pingThread = None
         self.ipHeaders = ["IP Address","Hostname","Ping","TTL","Manufacturer","MAC Address"]
+        self.currentIpList = None
+        self.clipBoard = wx.Clipboard()
         
         # this is passed to the PingAddress thread so we know
         # when to end and/or user intervenes to stop early
@@ -351,9 +353,41 @@ class MainFrame(wx.Frame):
             
         self.ipListFilter.GetContainingSizer().Layout()
     
+    def OnListContextMenu(self, event):
+        try:
+            e = event.GetEventObject()
+            name = e.GetName()
+        except:
+            id = event.GetId()
+            name = e.GetLabel(id)
+        
+        selection = self.currentIpList.GetFirstSelected()
+        content = []
+        if name == "All": 
+            while selection != -1:                   
+                c = []
+                for n,s in enumerate(self.ipHeaders):
+                    c.append(s+"="+self.currentIpList.GetItemText(selection, col=n))
+                content.append(",".join(c))
+                selection = self.currentIpList.GetNextSelected(selection)
+            content = "\n".join(content)
+        else:
+            while selection != -1:
+                iColumn = self.ipHeaders.index(name)                
+                content.append(self.currentIpList.GetItemText(selection, col=iColumn))
+                selection = self.currentIpList.GetNextSelected(selection)
+            content = ",".join(content)
+            
+        if self.clipBoard.Open():
+            self.clipBoard.SetData(wx.TextDataObject(content))
+            # keeps data on exit, X11 not supported
+            self.clipBoard.Flush() 
+            self.clipBoard.Close()
+    
     def OnIpListRightClick(self, event):
         """ handle both ip list and ip filtered list item context menu here"""
         ipList = event.GetEventObject()
+        self.currentIpList = ipList
         selection = ipList.GetFirstSelected()
         if selection == -1:
             return
@@ -366,7 +400,12 @@ class MainFrame(wx.Frame):
                 menu.AppendSeparator()
                 continue
             item = copyMenu.Append(wx.ID_ANY, label)  
+            
+        menu.Bind(wx.EVT_MENU, self.OnListContextMenu)
         self.PopupMenu(menu)
+        
+        
+        # copyMenu.Bind(wx.EVT_MENU, self.OnListContextMenu)
     
     def OnScanCheckBox(self, event):
         e = event.GetEventObject()
