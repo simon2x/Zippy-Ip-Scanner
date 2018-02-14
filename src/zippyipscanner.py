@@ -160,12 +160,14 @@ class MainFrame(wx.Frame):
         for col, header in enumerate(self.ipHeaders):
             self.ipList.InsertColumn(col, header)
         self.ipList.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)
+        self.ipList.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnIpListRightClick)
         sboxSizerResults.Add(self.ipList, 3, wx.ALL|wx.EXPAND, 5)
         
         self.ipListFilter = base.BaseList(panel)
         for col, header in enumerate(self.ipHeaders):
             self.ipListFilter.InsertColumn(col, header)
-        self.ipListFilter.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)                
+        self.ipListFilter.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)   
+        self.ipListFilter.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnIpListRightClick)
         sboxSizerResults.Add(self.ipListFilter, 3, wx.ALL|wx.EXPAND, 5)
         self.ipListFilter.Hide()
         
@@ -348,6 +350,10 @@ class MainFrame(wx.Frame):
             self.ipListFilter.Hide()
             
         self.ipListFilter.GetContainingSizer().Layout()
+    
+    def OnIpListRightClick(self, event):
+        """ handle both ip list and ip filtered list item context menu here"""
+        pass
     
     def OnScanCheckBox(self, event):
         e = event.GetEventObject()
