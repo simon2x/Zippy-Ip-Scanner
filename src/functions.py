@@ -218,7 +218,7 @@ class PingAddress(threading.Thread):
                     ttlEnd = output.index("\r\n\r\nPing statistics")
                     ttl = output[ttlStart+len("TTL="):ttlEnd]
                     msStart = output.index("Average = ")
-                    ms = output[msStart+len(("Average = ")):]
+                    ms = output[msStart+len(("Average = ")):].strip("\r\n")
                     
             if platform.system() == 'Linux':   
                 if "ttl=" in output:
