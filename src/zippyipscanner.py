@@ -353,7 +353,20 @@ class MainFrame(wx.Frame):
     
     def OnIpListRightClick(self, event):
         """ handle both ip list and ip filtered list item context menu here"""
-        pass
+        ipList = event.GetEventObject()
+        selection = ipList.GetFirstSelected()
+        if selection == -1:
+            return
+            
+        menu = wx.Menu()
+        copyMenu = wx.Menu()  
+        menu.AppendSubMenu(copyMenu, "Copy")
+        for label in ["All","IP Address","Hostname","Manufacturer","MAC Address"]:
+            if not label:
+                menu.AppendSeparator()
+                continue
+            item = copyMenu.Append(wx.ID_ANY, label)  
+        self.PopupMenu(menu)
     
     def OnScanCheckBox(self, event):
         e = event.GetEventObject()
