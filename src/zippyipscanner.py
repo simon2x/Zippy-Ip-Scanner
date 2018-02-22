@@ -63,7 +63,7 @@ class MainFrame(wx.Frame):
         self.SetupBitmaps()
         self._icons = {}
         self._data = {}
-        self._sortBy = None
+        self._sortBy = 0
         self._hostnameCache = {}
         self._addressResults = []
         self._addressDict = {}
@@ -163,7 +163,7 @@ class MainFrame(wx.Frame):
             self.ipList.InsertColumn(col, header)
         self.ipList.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)
         self.ipList.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnIpListRightClick)
-        sboxSizerResults.Add(self.ipList, 3, wx.ALL|wx.EXPAND, 5)
+        self.ipList.Hide()
         
         self.ipListFilter = base.BaseList(panel)
         for col, header in enumerate(self.ipHeaders):
@@ -171,7 +171,7 @@ class MainFrame(wx.Frame):
         self.ipListFilter.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)   
         self.ipListFilter.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnIpListRightClick)
         sboxSizerResults.Add(self.ipListFilter, 3, wx.ALL|wx.EXPAND, 5)
-        self.ipListFilter.Hide()
+        
         
         self.OnFilterCheckBox()        
         sizer.Add(sboxSizerResults, 1, wx.ALL|wx.EXPAND, 5)
@@ -261,32 +261,7 @@ class MainFrame(wx.Frame):
         logging.info(hostnames)
         for index, hostname in hostnames:
             self.ipList.SetItem(index, 1, hostname)
-            
-    def InsertAddress(self, msg):
-        msg = msg.data
-        index = msg["index"]
-        address = msg["address"]
-        ttl = msg["ttl"]
-        ms = msg["ms"]
-        mac = msg["mac"]
-        mfn = msg["mfn"]
-        status = msg["status"]
-        hostname = msg["hostname"]
-        
-        item = [address, hostname, ms, ttl, mfn, mac]
-        logging.info("Inserting item %s" % str(item))
-                        
-        self._data[index] = {"address":address,
-                             "status":status, 
-                             "hostname":hostname,
-                             "ms":ms,
-                             "status":status,
-                             "ttl":ttl,
-                             "mac":mac,
-                             "mfn":mfn,
-                             "manufacturer":""}
-        self.ipList.Append(item)
-    
+                
     def ParseIpString(self, ip):
         addresses = []
         # range?
@@ -344,14 +319,7 @@ class MainFrame(wx.Frame):
         return addresses
         
     def OnFilterCheckBox(self, event=None):
-        if self.chkShowAlive.GetValue() is True:
-            self.ipListFilter.Show()
-            self.ipList.Hide()
-        else:
-            self.ipList.Show()
-            self.ipListFilter.Hide()
-            
-        self.ipListFilter.GetContainingSizer().Layout()
+        self.OnColumn()
     
     def OnListContextMenu(self, event):
         try:
@@ -404,51 +372,10 @@ class MainFrame(wx.Frame):
         menu.Bind(wx.EVT_MENU, self.OnListContextMenu)
         self.PopupMenu(menu)
         
-        
-        # copyMenu.Bind(wx.EVT_MENU, self.OnListContextMenu)
-    
-    def OnScanCheckBox(self, event):
-        e = event.GetEventObject()
-        label = e.GetLabel()
-        value = e.GetValue()
-        if label == "MAC Address" and value is False:
-            self.scanConfig["Manufacturer"].SetValue(value)
-        elif label == "Manufacturer" and value is True:
-            self.scanConfig["MAC Address"].SetValue(value)
-                
-    
     def OnButton(self, event):
         e = event.GetEventObject()
         label = e.GetLabel()
         
-    def OnColumn(self, event):
-        """ here we sort items by the column clicked """
-        e = event.GetEventObject()
-        index = event.GetColumn()
-        
-        items = []
-        for row in range(e.GetItemCount()):
-            item = []
-            for col in range(e.GetColumnCount()):
-                text = e.GetItem(row, col).GetText()
-                item.append(text)
-            items.append(item)    
-            
-        e.DeleteAllItems()
-                
-        if self._sortBy == index:
-            # already sorted, this time reverse order
-            sorted_x = sorted(items, key=lambda x: x[index].lower())
-            sorted_x = reversed(sorted_x)
-        else:
-            sorted_x = sorted(items, key=lambda x: x[index].lower())            
-            self._sortBy = index
-            
-        # print(sorted_x)
-        e.DeleteAllItems()
-        for x in sorted_x:
-            e.Append(x)
-
     def OnClose(self, event):
         """ save settings before quitting """
         for label, chkBox in self.scanConfig.items():
@@ -459,6 +386,36 @@ class MainFrame(wx.Frame):
         self.app.SaveConfig()
         event.Skip()
      
+    def OnColumn(self, event=None):
+        """ here we sort items by the column clicked """
+        items = []
+        for row in range(self.ipList.GetItemCount()):
+            item = []
+            if self.chkShowAlive.GetValue() and not self.ipList.GetItem(row, 2).GetText():
+                continue
+            for col in range(self.ipList.GetColumnCount()):
+                text = self.ipList.GetItem(row, col).GetText()
+                item.append(text)
+            items.append(item)   
+                
+        if not event:
+            index = self._sortBy
+            sorted_x = sorted(items, key=lambda x: x[index].lower())
+        else:
+            index = event.GetColumn()
+            
+            if self._sortBy == index:
+                # already sorted, this time reverse order
+                sorted_x = sorted(items, key=lambda x: x[index].lower())
+                sorted_x = reversed(sorted_x)
+            else:
+                sorted_x = sorted(items, key=lambda x: x[index].lower())            
+                self._sortBy = index
+                        
+        self.ipListFilter.DeleteAllItems()
+        for x in sorted_x:
+            self.ipListFilter.Append(x)
+    
     def OnCustomScan(self, event):
         e = event.GetEventObject()
         name = e.GetName()
@@ -588,6 +545,15 @@ class MainFrame(wx.Frame):
         self.scanTotalCount = len(addresses)
         self.StartTimerCheck()
         
+    def OnScanCheckBox(self, event):
+        e = event.GetEventObject()
+        label = e.GetLabel()
+        value = e.GetValue()
+        if label == "MAC Address" and value is False:
+            self.scanConfig["Manufacturer"].SetValue(value)
+        elif label == "Manufacturer" and value is True:
+            self.scanConfig["MAC Address"].SetValue(value)
+                    
     def OnTimerCheck(self, event):
         if self.addressResultsCount < len(self._addressResults):
             result = self._addressResults[self.addressResultsCount]
@@ -605,15 +571,9 @@ class MainFrame(wx.Frame):
                 try:
                     self.ipList.SetItem(index, self.ipHeaders.index(k), v)
                 except Exception as e:
-                    print(e)
+                    print(e)                    
                         
-            if result["Ping"]:
-                item = self.ipListFilter.Append([result["IP Address"]])
-                for k, v in result.items():
-                    try:
-                        self.ipListFilter.SetItem(item, self.ipHeaders.index(k), v)
-                    except Exception as e:
-                        print(e)
+            self.OnColumn()
             
         msg = "Scanning: Addresses Pinged = {0}/{1}".format(self.addressResultsCount, self.scanTotalCount)
         msg += ", Hostname Checks Remaining = {0}".format(len(self._hostnameCheck))
@@ -750,5 +710,5 @@ class Main(wx.App):
         print(self.config)
         
 if __name__ == "__main__":
-    app = Main(portable=False)
+    app = Main(portable=True)
     app.MainLoop()
