@@ -5,7 +5,7 @@
 Zippy Ip Scanner is a free, open-source cross-platform IP scanning application written in python.
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-
+[![Build Status](https://travis-ci.org/swprojects/Zippy-Ip-Scanner.svg?branch=master)](https://travis-ci.org/swprojects/Zippy-Ip-Scanner)
 
 #
 
