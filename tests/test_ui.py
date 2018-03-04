@@ -33,7 +33,7 @@ class TestBaseList(unittest.TestCase):
         self.app = wx.App()
 
         self.frame = wx.Frame(None)
-        self.baseList = baseList(self.frame)
+        self.baseList = BaseList(self.frame)
 
     def tearDown(self):
         self.frame.Destroy()
