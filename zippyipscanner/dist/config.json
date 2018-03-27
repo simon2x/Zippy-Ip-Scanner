@@ -1,0 +1,23 @@
+{
+  "customScanHistory": [
+    "192.168.1.100-256",
+    "192.168.0.1-256"
+  ],
+  "filter": {
+    "showAliveOnly": true
+  },
+  "ipEndHistory": [
+    "192.168.0.256"
+  ],
+  "ipStartHistory": [
+    "192.168.0.0"
+  ],
+  "pos": null,
+  "scanConfig": {
+    "Hostname": true,
+    "MAC Address": true,
+    "Manufacturer": false,
+    "hostnameTimeout": 5
+  },
+  "size": null
+}
