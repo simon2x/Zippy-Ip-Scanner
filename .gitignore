@@ -2,3 +2,5 @@
 src/build/*
 src/dist/*
 src/config.json
+dist/*
+Zippy_Ip_Scanner.egg-info/*
