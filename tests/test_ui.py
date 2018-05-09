@@ -17,7 +17,7 @@ try:
     import wx
     from unittest import mock
 
-    from src.base import (
+    from zippyipscanner.base import (
         BaseList
     )
 except ImportError as error:
@@ -37,6 +37,14 @@ class TestBaseList(unittest.TestCase):
 
     def tearDown(self):
         self.frame.Destroy()
+        
+    def test_add_columns(self):
+        self.baseList.InsertColumn(0, "column0")
+    
+    def test_append(self):
+        self.baseList.InsertColumn(0, "column0")
+        self.baseList.Append(["item0"])
+        self.assertEqual(self.baseList.GetItemText(0, col=0), "item0")
 
 if __name__ == '__main__':
     unittest.main()
