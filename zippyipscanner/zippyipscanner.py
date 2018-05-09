@@ -193,7 +193,7 @@ class MainFrame(wx.Frame):
         self.timerHostTimeout.Start(1000)
         
         try:
-            self.SetIcon(wx.Icon(resource_path("icon.ico")))
+            self.SetIcon(wx.Icon(resource_path("zippyipscanner.ico")))
         except:
             pass
             

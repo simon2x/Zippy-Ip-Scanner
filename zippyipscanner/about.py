@@ -80,7 +80,7 @@ class AboutDialog(wx.Frame):
         self.Show()
         
         try:
-            self.SetIcon(wx.Icon(resource_path("icon.ico")))
+            self.SetIcon(wx.Icon(resource_path("zippyipscanner.ico")))
         except:
             pass
         self.Bind(wx.EVT_CHAR_HOOK, self.OnChar)
