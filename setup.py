@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 
 from codecs import open
-from os import path
+from os import path, system
 from setuptools import setup, find_packages
 import setuptools.command.build_py
 
