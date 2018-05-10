@@ -28,11 +28,6 @@ package_data = {
     'sample': ['package_data.dat'],
 }
 
-class InstallDependencies(setuptools.command.build_py.build_py):
-
-  def run(self):
-    system("chmod u+x install_dependencies.sh")
-    system("./install_dependencies.sh")
 
 setup(
     name='zippy-ip-scanner',
@@ -62,8 +57,7 @@ setup(
 
     # https://packaging.python.org/en/latest/requirements.html
     install_requires =  [
-        "wxPython",
-        "requests",
+        "pyqt5",
     ],
 
     license="GPLv3",
@@ -82,7 +76,6 @@ setup(
 
     test_suite='tests',
     tests_require=test_requirements,
-    cmdclass={'install_deps': InstallDependencies},
     entry_points={
           'gui_scripts': [
               'zippyscan = zippyipscanner.zippyipscanner:main'

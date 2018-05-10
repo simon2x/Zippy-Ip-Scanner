@@ -11,7 +11,7 @@ Zippy Ip Scanner
 
 IP Scanner
 
-* Free software: GPLv2
+* Free software: GPLv3
 * Documentation: (COMING SOON!) https://zippy-ip-scanner.readthedocs.org.
 
 Features
