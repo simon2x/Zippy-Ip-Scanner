@@ -16,8 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>
 """
 
-import json
 import logging
+import json
 import os
 import platform
 import re
@@ -26,6 +26,8 @@ import socket
 import subprocess
 import time
 import threading
+from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal
 
 def GetHostByAddress(address, hostname):
     try:
@@ -33,69 +35,30 @@ def GetHostByAddress(address, hostname):
     except socket.herror:
         hostname.append("n/a")
     
-class LookupHostname(threading.Thread):
+class LookupHostname(QtCore.QThread):
     
-    def __init__(self, address, buffer, timeout):
-        threading.Thread.__init__(self)
+    signal = pyqtSignal(dict)
+    
+    def __init__(self, parent, address, timeout):
+        super(LookupHostname, self).__init__()
         
-        self._finished = None
-        self._beginCheck = None
-        self._timeout = timeout
-        # lookup hostnames of IP address
+        self.parent = parent
+        self.timeout = timeout * 1000
         self.address = address
-        self.hostname = buffer
-        self.daemon = True
-        # self.start()
-        # n = 0
-        # while n < timeout:
-            # if hostname:
-                # return hostname[0]
-            # n += 0.1
-            # time.sleep(0.1)
         
-        # return ""
-        
-    @property
-    def beginCheck(self):
-        return self._beginCheck
-        
-    @beginCheck.setter
-    def beginCheck(self, value):
-        if value is True:
-            self._beginCheck = True
-            self.start()
-            
-    @property
-    def timeout(self):
-        return self._timeout
-        
-    @timeout.setter
-    def timeout(self, value):
-        timeout = value
-        if value <= 0:
-            self.finished = True    
-            
-    @property
-    def finished(self):
-        if self.hostname == []:
-            self.hostname.append("t/o")
-        return self._finished
-        
-    @finished.setter
-    def finished(self, value):
-        self._finished = value   
-        
+        self.signal.connect(self.parent.receiveHostnameResult)
+                            
     def run(self):
+        hostname = "n/a"
         try:
-            self.hostname.append(socket.gethostbyaddr(self.address)[0])
+            hostname = socket.gethostbyaddr(self.address)[0]
         except socket.herror:
-            self.hostname.append("n/a")
-        
-        self._finished = True
+            pass        
+        self.signal.emit({"address": self.address, "hostname": hostname})
     
 def LookupMacAddress(address):
-
-    """ Finds the MAC Addresses using ARP
+    """
+    Finds the MAC Addresses using ARP
 
     NOTE: This finds mac addresses only within the subnet.
     It doesn't fetch mac addresses for routed network ips.
@@ -132,41 +95,42 @@ def LookupMacAddress(address):
     return mac
     
 def LookupManufacturers(mac):
-    """ request from macvendors.co """
+    """Request to macvendors.co for manufacturer name"""
     macUrl = 'http://macvendors.co/api/{0}'.format(mac)    
     req = urllib.request.Request(macUrl, headers={'User-Agent': 'Mozilla/5.0'})
     try:
         result = urllib.request.urlopen(req).read()
         result = result.decode("utf-8")
     except Exception as e:
-        print(e)
+        logging.info("LookupManufacturers Exception: {0}".format(e))
         return ""
     
-    print(result)
-    # logging.info("request URL: %s" % r.text)
+    logging.info("LookupManufacturers:Result: %s" % result)
+    # logging.debug("request URL: %s" % r.text)
     result = json.loads(result)["result"]
     
-    print(result)
     try:
         mfn = result["company"]
         return mfn
     except:
         return ""
-        
-class PingAddress(threading.Thread):
+
+class PingAddress(QtCore.QThread):
+
+    signal = pyqtSignal(dict)
+    debugSignal = pyqtSignal(str)
     
-    def __init__(self, addresses, addressResults, stopThread, scanParams):
+    def __init__(self, parent, addresses, scanParams):
+        super(PingAddress, self).__init__()
         
-        threading.Thread.__init__(self)
-        
-        self.scanParams = scanParams
-        self._stopThread = stopThread
-        self._addressResults = addressResults
-        
+        self.parent = parent 
+        self.signal.connect(self.parent.receiveScanResult)
+        self.debugSignal.connect(self.parent.receiveDebugSignal)
+        self.scanParams = scanParams   
         self._addresses = addresses
         self.start()
         
-    def run(self):    
+    def run(self):
         
         info = None
         # Configure subprocess to hide the console window
@@ -177,11 +141,7 @@ class PingAddress(threading.Thread):
         
         for index, address in enumerate(self._addresses):
         
-            if self._stopThread == [True]:
-                return
-            
-            # For each IP address in the subnet, 
-            # run the ping command with subprocess.popen interface
+            # For each IP address in the subnet, run the ping command
             address = str(address)
             if platform.system() == 'Windows':
                 cmd = ['ping', '-n', '1', '-w', '500', address]
@@ -214,12 +174,14 @@ class PingAddress(threading.Thread):
                 elif "General failure" in output: 
                     pass
                 else:
-                    status = "Online"
-                    ttlStart = output.index("TTL=")
-                    ttlEnd = output.index("\r\n\r\nPing statistics")
-                    ttl = output[ttlStart+len("TTL="):ttlEnd]
-                    msStart = output.index("Average = ")
-                    ms = output[msStart+len(("Average = ")):].strip("\r\n")
+                    self.debugSignal.emit("PingAddress->Output: %s" % output)
+                    if "TTL=" in output:
+                        status = "Online"
+                        ttlStart = output.index("TTL=")
+                        ttlEnd = output.index("\r\n\r\nPing statistics")
+                        ttl = output[ttlStart+len("TTL="):ttlEnd]
+                        msStart = output.index("Average = ")
+                        ms = output[msStart+len(("Average = ")):].strip("\r\n")
                     
             if platform.system() == 'Linux':   
                 if "ttl=" in output:
@@ -230,15 +192,18 @@ class PingAddress(threading.Thread):
                     msStart = output.index("time=")
                     msEnd = output.index(" ms") 
                     ms = output[msStart+len("time="):msEnd]
-           
+          
+            self.debugSignal.emit("PingAddress->Status: %s" % status)
             if status == "Online":
-                if self.scanParams["MAC Address"] is True:
+                if self.scanParams["MAC Address"] == 2:
+                    self.debugSignal.emit("PingAddress->MAC Address: %s" % address)
                     mac = LookupMacAddress(address)
                 
-                if self.scanParams["Manufacturer"] is True:
+                if self.scanParams["Manufacturer"] == 2:
+                    self.debugSignal.emit("PingAddress->LookupManufacturers: %s" % mac)
                     mfn = LookupManufacturers(mac)
                 
-                # if self.scanParams["Hostname"] is True:
+                # if self.scanParams["Hostname"] == 2:
                     # hostname = LookupHostname(address, self.scanParams["hostnameTimeout"])
                     
             params = {}
@@ -250,8 +215,7 @@ class PingAddress(threading.Thread):
             params["MAC Address"] = mac
             # params["status"] = status
             # params["Hostname"] = hostname
-            self._addressResults.append(params)
             
-        self._stopThread.append(True)
+            self.signal.emit(params)
         
 #end class PingAddress
