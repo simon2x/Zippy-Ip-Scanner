@@ -18,81 +18,98 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>
 """
 
+import logging
 from version import __version__
 from license import __license__
-import os
-import wx
-from wx.lib.agw import hyperlink
+import sys
+
+from PyQt5 import QtGui, QtCore
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+
 from portable import resource_path
 
-class AboutDialog(wx.Frame):
+class AboutDialog(QDialog):
 
-    def __init__(self):                    
-        wx.Frame.__init__(self, None, -1, title="About Zippy Ip Scanner")
-                        
-        panel = wx.Panel(self)    
-        sizer = wx.BoxSizer(wx.VERTICAL)
+    def __init__(self, parent=None):                    
+        super(AboutDialog, self).__init__(parent)
         
-        sbox1 = wx.StaticBox(panel, label="")
-        sboxSizerInfo = wx.StaticBoxSizer(sbox1, wx.HORIZONTAL)
-        grid = wx.GridSizer(cols=2)
-        grid.Add(wx.StaticText(panel, label="Author:"), 0, wx.ALL, 5)
-        link = hyperlink.HyperLinkCtrl(panel, label="www.sanawu.com", URL="www.sanawu.com")
-        grid.Add(link, 0, wx.ALL|wx.EXPAND, 5)
-        grid.Add(wx.StaticText(panel, label="Github:"), 0, wx.ALL, 5)
-        g = "https://github.com/swprojects/Zippy-Ip-Scanner"
-        link = hyperlink.HyperLinkCtrl(panel, label=g, URL=g)
-        grid.Add(link, 1, wx.ALL|wx.EXPAND, 5)
-        grid.Add(wx.StaticText(panel, label="Version:"), 0, wx.ALL, 5)
-        v = __version__
-        grid.Add(wx.StaticText(panel, label=v), 0, wx.ALL, 5)
+        self.setWindowTitle("About Zippy Ip Scanner")
+        self.setWindowIcon(QtGui.QIcon('zippyipscanner.ico'))
+        self.initGUI()
+        self.show()
         
-        sboxSizerInfo.Add(grid, 1, wx.ALL|wx.EXPAND, 5)
-        
-        sbox = wx.StaticBox(panel, label="Mac Vendor Lookup")        
-        sboxSizerMacLookup = wx.StaticBoxSizer(sbox, wx.VERTICAL)  
-        lookupText = wx.StaticText(panel)
-        text = ("Zippy Ip Scanner retrieves the MAC vendor name via MacVendors.co API and \n"
-               +"therefore MAC vendor name retrieval is subject to MacVendors.co privacy policy.")
-        lookupText.SetLabel(text)
-        sboxSizerMacLookup.Add(lookupText, 1, wx.ALL|wx.ALIGN_CENTRE, 5)
-        link = hyperlink.HyperLinkCtrl(panel, label="MacVendors.co Privacy Policy", URL="http://macvendors.co/kb/privacy-policy")
-        sboxSizerMacLookup.Add(link, 1, wx.ALL|wx.ALIGN_CENTRE, 5)
-        
-        sbox2 = wx.StaticBox(panel, label="License")
-        sboxSizerLicense = wx.StaticBoxSizer(sbox2, wx.VERTICAL)  
-              
-        style = wx.TE_MULTILINE|wx.TE_READONLY|wx.TE_CENTRE
-        licenseText = wx.TextCtrl(panel, style=style)
-        licenseText.SetValue(__license__)
-        sboxSizerLicense.Add(licenseText, 1, wx.ALL|wx.EXPAND, 5)
-        
-        sizer.Add(sboxSizerInfo, 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(sboxSizerMacLookup, 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(sboxSizerLicense, 1, wx.ALL|wx.EXPAND, 5)
-        
-        panel.SetSizerAndFit(sizer)
-        
-        self.Centre()
-        self.Fit()
-        w,h = self.GetSize()
-        self.SetMinSize((w, h*1.5))        
-        self.SetSize((w, h*1.5))
-        self.Show()
-        
-        try:
-            self.SetIcon(wx.Icon(resource_path("zippyipscanner.ico")))
-        except:
-            pass
-        self.Bind(wx.EVT_CHAR_HOOK, self.OnChar)
-        
-    @property 
-    def app(self):
-        return wx.GetApp()
-        
-    def OnChar(self, event):
-        keycode = event.GetKeyCode()
-        if keycode == wx.WXK_ESCAPE:
-            self.Close()   
+    def keyPressEvent(self, event):
+        logging.info("AboutDialog->keyPressEvent")
+        if type(event) == QtGui.QKeyEvent:
+            if event.key() == QtCore.Qt.Key_Escape:
+                self.close()
             
+    def initGUI(self):
+        row = 0
+        self.grid = QGridLayout()
+        self.grid.setColumnStretch(0, 1)
+        self.grid.setColumnStretch(1, 1)
+        self.grid.setSpacing(5)
+        self.setLayout(self.grid)
         
+        # About
+        aboutLayout = QGridLayout()  
+        gboxScan = QGroupBox("About", self) 
+        gboxScan.setLayout(aboutLayout)
+        self.grid.addWidget(gboxScan, row, 0, 1, 2)
+        
+        aboutLayout.addWidget(QLabel("Author:", self), 0, 0, 1, 2)
+        authorLabel = QLabel("<a href=www.sanawu.com>www.sanawu.com</a>", self)
+        authorLabel.setTextFormat(QtCore.Qt.RichText);
+        authorLabel.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+        aboutLayout.addWidget(authorLabel, 0, 2, 1, 2)
+        authorLabel.setOpenExternalLinks(True)
+        
+        aboutLayout.addWidget(QLabel("Github:", self), 1, 0, 1, 2)     
+        g = "https://github.com/swprojects/Zippy-Ip-Scanner"
+        homeLabel = QLabel ("<a href={0}>{1}</a>".format(g, g), self)
+        homeLabel.setTextFormat(QtCore.Qt.RichText);
+        homeLabel.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+        homeLabel.setOpenExternalLinks(True)
+        aboutLayout.addWidget(homeLabel, 1, 2, 1, 1)
+        
+        aboutLayout.addWidget(QLabel("Version:", self), 2, 0, 1, 2)
+        aboutLayout.addWidget(QLabel(str(__version__), self), 2, 2, 1, 2)
+        
+        
+        # Mac Vender Lookup
+        row += 1
+        policyLayout = QHBoxLayout()
+        gboxPolicy = QGroupBox("Mac Vender Lookup", self) 
+        gboxPolicy.setLayout(policyLayout)
+        self.grid.addWidget(gboxPolicy, row, 0, 1, 2)
+        
+        pLink = "http://macvendors.co/kb/privacy-policy"
+        p = ("Zippy Ip Scanner retrieves the MAC vendor name via MacVendors.co API and \n"
+            +"therefore MAC vendor name retrieval is subject to <a href={0}>MacVendors.co privacy policy</a>.\n".format(pLink)
+            +"Uncheck Manufacturer checkbox to disable this feature.")
+        policyLabel = QLabel(p, self)
+        policyLabel.setWordWrap(True)
+        policyLabel.setTextFormat(QtCore.Qt.RichText)
+        policyLabel.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+        policyLabel.setOpenExternalLinks(True)
+        policyLayout.addWidget(policyLabel)
+                
+        # License
+        row += 1
+        self.grid.setRowStretch(row, 1)
+        gboxScanLayout = QHBoxLayout()  
+        gboxScan = QGroupBox("License", self) 
+        gboxScan.setLayout(gboxScanLayout)
+        self.grid.addWidget(gboxScan, row, 0, 1, 2)
+        licenseText = QTextEdit()
+        licenseText.setReadOnly(True)
+        licenseText.setAlignment(QtCore.Qt.AlignCenter)
+        licenseText.setText(__license__)
+        gboxScanLayout.addWidget(licenseText)
+      
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    gui = AboutDialog()
+    sys.exit(app.exec_())
