@@ -25,250 +25,449 @@ if __name__ != "__main__":
     # this allows avoid changing relative imports
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
-import csv
-import base
 import functions
 import json
 import logging
-import platform
-import queue
-import subprocess
-import threading
-import time
-import wx
-from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
-from version import __version__
-from collections import OrderedDict
+from functools import partial
+
+from PyQt5 import QtGui, QtCore
+from PyQt5.QtCore import (QDate, QDateTime, QRegExp, QSortFilterProxyModel, 
+                          Qt, QTime, QSize, QTimer, pyqtSignal, pyqtSlot)
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+
 from about import AboutDialog
-from updatechecker import CheckForUpdates
-from splashscreen import SplashScreen
-from portable import resource_path
+# from updatechecker import CheckForUpdates
+
+from version import __version__
 
 #----- logging -----#
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class MainFrame(wx.Frame):
+STOP_ICON = 'images/stop.png'
+START_ICON = 'images/start.png'
+MAX_HOSTNAME_CHECKS = 5
+TIMER_CHECK_MS = 100
+SPLASH_TIMEOUT = 1200
 
-    def __init__(self, portable=False):
-        if portable:
-            title = 'Zippy IP Scanner v{0} - Portable'.format(__version__)
-        else:
-            title = 'Zippy IP Scanner v{0}'.format(__version__)
-
-        wx.Frame.__init__(self, None, title=title)
-        self.CreateStatusBar()
-        self.CreateMenu()
-
-        self._aboutFrame = None
-        self._checkUpdateDialog = None
-
-        self._menus = {}
-        self._btns = {}
+class MainWindow(QMainWindow):
+    
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        logging.debug("MainWindow ")
+                
+        self._isScanning = False
         self._bitmaps = {}
-        self.SetupBitmaps()
-        self._icons = {}
-        self._data = {}
+        # self.SetupBitmaps()
         self._sortBy = 0
-        self._hostnameCache = {}
         self._addressResults = []
+        self.addressResultsCount = 0
         self._addressDict = {}
-        self._hostnameCheck = []
+        self._hostnameCheck = {}
+        self._hostnameCheckThreads = {}
         self.scanTotalCount = 0
         self.pingThread = None
         self.ipHeaders = ["IP Address","Hostname","Ping","TTL","Manufacturer","MAC Address"]
         self.currentIpList = None
-        self.clipBoard = wx.Clipboard()
+        
+        self.setWindowTitle('Zippy IP Scanner v{0}'.format(__version__))
+        self.setWindowIcon(QtGui.QIcon('zippyipscanner.ico'))
+        
+        self._config = self.appDefaults
+        self.loadConfig()
+        self.createMenuBar()
+        self.statusBar()
+        self.initGUI()  
+        self.initTimers()
+        self.restoreConfigState()
+        
+        self.initSplash()
+        self.show()
+                 
+    @property
+    def appDefaults(self):
+        return {
+            "pos": None,
+            "size": [400, 300],
+            "ipStartHistory": [],
+            "ipEndHistory": [],
+            "customScanHistory": [],
+            "scanConfig": {"hostnameTimeout":"5", "Hostname":2, "Manufacturer":2, "MAC Address": 2},
+            "filter": {"showAliveOnly": 2}
+        }
 
-        # this is passed to the PingAddress thread so we know
-        # when to end and/or user intervenes to stop early
-        self._stopThread = []
-
-        panel = wx.Panel(self)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-
-        # ranged scan static box
-        sbox = wx.StaticBox(panel, label="Scan Range")
-        sboxSizerScanRange = wx.StaticBoxSizer(sbox, wx.HORIZONTAL)
-        self.startIp = wx.ComboBox(panel)
-        self.endIp = wx.ComboBox(panel)
-        sboxSizerScanRange.Add(self.startIp, 1, wx.ALL|wx.ALIGN_CENTRE, 5)
-        sboxSizerScanRange.Add(self.endIp, 1, wx.ALL|wx.ALIGN_CENTRE, 5)
-
-        # restore previous values
-        for item in self.app.config["ipStartHistory"]:
-            self.startIp.Append(item)
-        for item in self.app.config["ipEndHistory"]:
-            self.endIp.Append(item)
-
-        if self.app.config["ipStartHistory"] == []:
-            self.startIp.SetValue("192.168.0.0")
-        else:
-            self.startIp.SetSelection(0)
-
-        if self.app.config["ipEndHistory"] == []:
-            self.endIp.SetValue("192.168.0.256")
-        else:
-            self.endIp.SetSelection(0)
-
-        self.btnScan = wx.Button(panel, label="Scan", name="", style=wx.BU_NOTEXT)
-        self.btnScan.SetBitmap(self.bitmaps["start"])
-        self.btnScan.Bind(wx.EVT_BUTTON, self.OnScan)
-        sboxSizerScanRange.Add(self.btnScan, 0, wx.ALL, 5)
-        sizer.Add(sboxSizerScanRange, 0, wx.ALL|wx.EXPAND, 5)
-
-        # custom scan static box
-        sbox = wx.StaticBox(panel, label="Custom Scan")
-        sboxSizerCustomScan = wx.StaticBoxSizer(sbox, wx.HORIZONTAL)
-        self.stringIp = wx.ComboBox(panel, value="192.168.0.0-100")
-        sboxSizerCustomScan.Add(self.stringIp, 1, wx.ALL|wx.ALIGN_CENTRE, 5)
-
-        self.btnCustomScan = wx.Button(panel, label="Scan", name="", style=wx.BU_NOTEXT)
-        self.btnCustomScan.SetBitmap(self.bitmaps["start"])
-        self.btnCustomScan.Bind(wx.EVT_BUTTON, self.OnCustomScan)
-        sboxSizerCustomScan.Add(self.btnCustomScan, 0, wx.ALL, 5)
-        sboxSizerCustomScan.Add(wx.StaticLine(panel), 0, wx.ALL|wx.EXPAND, 0)
-        sizer.Add(sboxSizerCustomScan, 0, wx.ALL|wx.EXPAND, 5)
-
-        # restore previous values
-        for item in self.app.config["customScanHistory"]:
-            self.stringIp.Append(item)
-        if self.app.config["customScanHistory"] == []:
-            self.stringIp.SetValue("192.168.0.1-256")
-        else:
-            self.stringIp.SetSelection(0)
-
-        # custom scan static box
-        sbox = wx.StaticBox(panel, label="Scan Configuration")
-        sboxSizerScanConfig = wx.StaticBoxSizer(sbox, wx.HORIZONTAL)
-        hostTimeoutLabel = wx.StaticText(panel, label="Hostname Timeout [-1=5s] (s):")
-        self.spinHostTimeout = wx.SpinCtrl(panel, min=-1, max=90, value="-1")
-        self.spinHostTimeout.SetValue(self.app.config["scanConfig"]["hostnameTimeout"])
-        sboxSizerScanConfig.Add(hostTimeoutLabel, 0, wx.ALL|wx.CENTRE, 5)
-        sboxSizerScanConfig.Add(self.spinHostTimeout, 0, wx.ALL, 5)
-        self.scanConfig = {}
-        for label in ["Hostname", "MAC Address", "Manufacturer"]:
-            self.scanConfig[label] = wx.CheckBox(panel, label=label)
-            self.scanConfig[label].Bind(wx.EVT_CHECKBOX, self.OnScanCheckBox)
-            self.scanConfig[label].SetValue(self.app.config["scanConfig"][label])
-            sboxSizerScanConfig.Add(self.scanConfig[label], 0, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(sboxSizerScanConfig, 0, wx.ALL|wx.EXPAND, 5)
-
-        # results box
-        sbox = wx.StaticBox(panel, label="Results")
-        sboxSizerResults = wx.StaticBoxSizer(sbox, wx.VERTICAL)
-        hSizerFilter = wx.BoxSizer(wx.HORIZONTAL)
-        self.chkShowAlive = wx.CheckBox(panel, label="Show Alive Only")
-        self.chkShowAlive.Bind(wx.EVT_CHECKBOX, self.OnFilterCheckBox)
-        self.chkShowAlive.SetValue(self.app.config["filter"]["showAliveOnly"])
-        hSizerFilter.Add(self.chkShowAlive, 0, wx.ALL|wx.EXPAND, 5)
-        sboxSizerResults.Add(hSizerFilter, 0, wx.ALL|wx.EXPAND, 5)
-
-        self.ipList = base.BaseList(panel)
-        for col, header in enumerate(self.ipHeaders):
-            self.ipList.InsertColumn(col, header)
-        self.ipList.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)
-        self.ipList.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnIpListRightClick)
-        self.ipList.Hide()
-
-        self.ipListFilter = base.BaseList(panel)
-        for col, header in enumerate(self.ipHeaders):
-            self.ipListFilter.InsertColumn(col, header)
-        self.ipListFilter.Bind(wx.EVT_LIST_COL_CLICK, self.OnColumn)
-        self.ipListFilter.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnIpListRightClick)
-        sboxSizerResults.Add(self.ipListFilter, 3, wx.ALL|wx.EXPAND, 5)
-
-
-        self.OnFilterCheckBox()
-        sizer.Add(sboxSizerResults, 1, wx.ALL|wx.EXPAND, 5)
-
-        panel.SetSizer(sizer)
-
-        self.SetMinSize(sizer.Fit(self))
-        self.Show()
-
-        panel.SetSizer(sizer)
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
-
-        self._hosts = {}
-        self.timerCheck = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.OnTimerCheck, self.timerCheck)
-
-        self.timerHostTimeout = wx.Timer(self)
-        self.Bind(wx.EVT_TIMER, self.OnTimerHostTimeout, self.timerHostTimeout)
-        self.timerHostTimeout.Start(1000)
-
+    @property
+    def config(self):
+        return self._config
+        
+    @property
+    def configPath(self):
+        path = "config.json"
+        return path
+        
+    @property
+    def isScanning(self):
+        return self._isScanning
+        
+    @isScanning.setter
+    def isScanning(self, value):
+        self._isScanning = value 
+           
+    @pyqtSlot(str)
+    def lookupTimedOut(self, address):
+        logging.info(address)
+        del self._hostnameCheck[address]
+        
+    @pyqtSlot(str)
+    def receiveDebugSignal(self, str):
+        logging.debug(str)  
+        
+    @pyqtSlot(dict)
+    def receiveHostnameResult(self, result):
+        logging.debug(result)
+           
+        if not self.isScanning:
+            return
+            
         try:
-            self.SetIcon(wx.Icon(resource_path("zippyipscanner.ico")))
-        except:
-            pass
-
-    @property
-    def app(self):
-        return wx.GetApp()
-
-    @property
-    def statusBar(self):
-        return self.GetStatusText()
-
-    @statusBar.setter
-    def statusBar(self, value):
-        return self.SetStatusText(str(value))
-
-    @property
-    def bitmaps(self):
-        return self._bitmaps
-
+            index = self._addressDict[result["address"]]["index"] 
+            self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index("Hostname")), result["hostname"])
+            del self._hostnameCheck[result["address"]]
+            del self._hostnameCheckThreads[result["address"]]
+        except KeyError: 
+            logging.debug(KeyError)
+        
+    @pyqtSlot(dict)
+    def receiveScanResult(self, result):
+        logging.debug(result)
+        
+        if not self.isScanning:
+            return
+        
+        index = self._addressDict[result["IP Address"]]["index"]        
+        if self.scanConfig["Hostname"].checkState() == 2 and result["Ping"]:            
+            timeout = self.spinHostTimeout.value()
+            if timeout == -1:
+                timeout = 5
+            self._hostnameCheck[result["IP Address"]] = functions.LookupHostname(self, result["IP Address"], timeout)
+        self.addressResultsCount += 1
+        for k, v in result.items():            
+            try:
+                self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index(k)), v)                
+            except Exception as e:
+                logging.info("onTimerCheck::Exception: %s, k=%s, v=%s" % e, k, v)
+        
     @property
     def scanParams(self):
         params = {}
         for label, chkBox in self.scanConfig.items():
-            params[label] = chkBox.GetValue()
+            params[label] = chkBox.checkState()
         del params["Hostname"]
         return params
-
-    def CleanScan(self):
-        self._stopThread = []
+        
+    def appendIpEntry(self, data):
+        self.ipModel.insertRow(self.ipModel.rowCount())
+        for col, header in enumerate(self.ipHeaders):
+            try:
+                self.ipModel.setData(self.ipModel.index(self.ipModel.rowCount()-1, col), data[header])
+            except:
+                pass
+           
+    def closeEvent(self, event):
+        self.stopScan()
+        self.saveConfig()
+        if self.splash:
+            self.splash.close()
+        event.accept()
+        
+    def clearIpListItems(self):
+        self.ipModel.removeRows(0, self.ipModel.rowCount())
+    
+    def cleanScan(self):        
         self._addressResults = []
-
         self._addressDict = {}
-        self._hostnameCheck = []
+        self._addresses = {}
+        self._hostnameCheck = {}
+        self._hostnameCheckThreads = {}
         self.pingThread = None
+        
+        self.btnScan.setIcon(QtGui.QIcon(START_ICON))
+        self.btnCustomScan.setIcon(QtGui.QIcon(START_ICON))
+        self.isScanning = False
+        
+    def createMenuBar(self):
+        exitAction = QAction("&Exit", self)
+        exitAction.setShortcut("Ctrl+Q")
+        exitAction.setStatusTip('Exit application...')
+        # exitAction.triggered.connect(QtCore.QCoreApplication.instance().quit)
+        exitAction.triggered.connect(self.close)
+        
+        aboutAction = QAction("&About", self)
+        aboutAction.setShortcut("Ctrl+F1")
+        aboutAction.setStatusTip('About')
+        aboutAction.triggered.connect(self.showAbout)
+        
+        mainMenu = self.menuBar()
+        fileMenu = mainMenu.addMenu('&File')
+        fileMenu.addAction(exitAction)
+        
+        helpMenu = mainMenu.addMenu('&Help')
+        helpMenu.addAction(aboutAction)
+        
+    def createIpModel(self, parent):
+        model = QStandardItemModel(0, 6, parent)
+        for col, header in enumerate(self.ipHeaders):
+            logging.info("Adding column %s" % str(header))
+            model.setHeaderData(col, Qt.Horizontal, header)
+        return model
+        
+    def initGUI(self):
+        row = 0
+        widget = QWidget()
+        self.setCentralWidget(widget)
+        self.grid = QGridLayout()
+        self.grid.setColumnStretch(0, 1)
+        self.grid.setColumnStretch(1, 1)
+        # self.grid.setColumnStretch(4, 1)
+        self.grid.setSpacing(5)
+        widget.setLayout(self.grid)
+        
+        # scan range
+        gboxScanLayout = QHBoxLayout()  
+        gboxScan = QGroupBox("Scan Range", self) 
+        gboxScan.setLayout(gboxScanLayout)
+        self.grid.addWidget(gboxScan, row, 0, 1, 2)
+        
+        self.startIp = QComboBox(self)
+        self.startIp.setEditable(True)
+        self.endIp = QComboBox(self)
+        self.endIp.setEditable(True)
+        gboxScanLayout.addWidget(self.startIp)
+        gboxScanLayout.addWidget(self.endIp)
+        
+        self.btnScan = QToolButton(self)
+        self.btnScan.clicked.connect(self.onScan)
+        self.btnScan.setIcon(QtGui.QIcon(START_ICON))
+        self.btnScan.setIconSize(QSize(48,32))
+        gboxScanLayout.addWidget(self.btnScan)
+       
+        # custom scan        
+        row += 1
+        gboxCustomScanLayout = QHBoxLayout()  
+        gboxCustomScan = QGroupBox("Custom Scan Range", self) 
+        gboxCustomScan.setLayout(gboxCustomScanLayout)
+        self.grid.addWidget(gboxCustomScan, row, 0, 1, 2)
+        self.stringIp = QComboBox(self)
+        self.stringIp.setEditable(True)
+        gboxCustomScanLayout.addWidget(self.stringIp)
+        self.btnCustomScan = QToolButton(self)
+        self.btnCustomScan.setIcon(QtGui.QIcon(START_ICON))
+        self.btnCustomScan.setIconSize(QSize(48,32))
+        self.btnCustomScan.clicked.connect(self.onCustomScan)
+        gboxCustomScanLayout.addWidget(self.btnCustomScan)
+               
+        # scan configuration
+        row += 1
+        scanConfBox = QHBoxLayout()
+        gboxScanConfig = QGroupBox("Scan Configurations", self)
+        gboxScanConfig.setLayout(scanConfBox)        
+        timeoutLabel = QLabel(self)
+        timeoutLabel.setText("Hostname Timeout [-1=5s]")        
+        self.spinHostTimeout = QSpinBox(self)        
+        self.spinHostTimeout.setMinimum(-1)
+        self.spinHostTimeout.setMaximum(99)
+        self.spinHostTimeout.setValue(int(self.config["scanConfig"]["hostnameTimeout"]))
+        self.spinHostTimeout.valueChanged.connect(self.saveConfig)
+        scanConfBox.addWidget(timeoutLabel)
+        scanConfBox.addWidget(self.spinHostTimeout)
+        self.scanConfig = {}
+        for label in ["Hostname", "MAC Address", "Manufacturer"]:
+            self.scanConfig[label] = QCheckBox(label, self)
+            self.scanConfig[label].setCheckState(self.config["scanConfig"][label])
+            self.scanConfig[label].stateChanged.connect(partial(self.onScanCheckBox, label))
+            scanConfBox.addWidget(self.scanConfig[label])
+        self.grid.addWidget(gboxScanConfig, row, 0)#, 1, 2)
 
-        self.btnScan.SetBitmap(self.bitmaps["start"])
-        self.btnCustomScan.SetBitmap(self.bitmaps["start"])
+        # results
+        row += 1
+        self.grid.setRowStretch(row, 1)
+        gboxLayout = QVBoxLayout()  
+        gboxResults = QGroupBox("Results", self) 
+        gboxResults.setLayout(gboxLayout)
+        self.chkShowAlive = QCheckBox("Show Alive Only", self)
+        self.chkShowAlive.setCheckState(self.config["filter"]["showAliveOnly"])
+        self.chkShowAlive.stateChanged.connect(self.onFilterCheckBox)
+        self.chkShowAlive.setTristate(False)
+        gboxLayout.addWidget(self.chkShowAlive)
+        self.ipList = QTreeView()
+        self.ipList.setRootIsDecorated(False)
+        self.ipList.setAlternatingRowColors(True)
+        self.ipModel = self.createIpModel(self.ipList)
+        self.ipList.setModel(self.ipModel)
+        gboxLayout.addWidget(self.ipList)
+        self.grid.addWidget(gboxResults, row, 0, -1, -1)
+        
+    def initSplash(self):
+        self.splash = QSplashScreen(QPixmap("splash.png"), QtCore.Qt.WindowStaysOnTopHint)
+        self.splash.show()
+        
+        QtCore.QTimer.singleShot(SPLASH_TIMEOUT, lambda: self.splash.close())
+        
+    def initTimers(self):
+        logging.debug("MainWindow->initTimers")
+        self.timerCheck = QTimer()
+        self.timerCheck.timeout.connect(self.onTimerCheck)
+    
+    def loadConfig(self):
+        """ try to load settings or create/overwrite config file"""
+        logging.info("MainWindow->loadConfig")
+        try:
+            with open(self.configPath, "r") as file:
+                data = json.load(file)
+                file.close()
+                self.config.update(data)
+        except Exception as e:
+            logging.info("Could Not Load Settings File:", e)
+            self.saveConfig()
+    
+    def onCustomScan(self):
+        logging.info("MainWindow->onCustomScan")
+        
+        if self.isScanning is True:
+            self.stopScan()
+            return
+        self.isScanning = True
+        self.setStatusBarText("Scanning ...")
+        self.btnScan.setIcon(QtGui.QIcon(STOP_ICON))
+        self.btnCustomScan.setIcon(QtGui.QIcon(STOP_ICON))
+        self.clearIpListItems()
+        
+        stringIp = self.stringIp.currentText()
+        if not stringIp:
+            self.stopScan()
+            return
+        
+        self.updateScanHistory()
+        addresses = []
+        stringIp = stringIp.split(",")
+        for ip in stringIp:
+            res = self.parseIpString(ip)
+            for add in res:
+                if add in addresses:
+                    continue
+                addresses.append(add)
+        
+        self._addresses = addresses
+        self.startScan()
+        
+    def onFilterCheckBox(self, state):
+        self.saveConfig()
+            
+    def onScan(self, event):
+        """Scan range"""
+        logging.info("MainWindow->onScan")
+        if self.isScanning is True:
+            self.stopScan()
+            return
+        self.isScanning = True
+        self.setStatusBarText("Scanning ...")
+        self.btnScan.setIcon(QtGui.QIcon(STOP_ICON))
+        self.btnCustomScan.setIcon(QtGui.QIcon(STOP_ICON))
+        self.clearIpListItems()
 
-        self.btnScan.SetName("")
-        self.btnCustomScan.SetName("")
+        startIp = self.startIp.currentText()
+        endIp = self.endIp.currentText()
+        if not startIp and not endIp:
+            logging.info("No valid IP range defined")
+            self.stopScan()
+            return
+        if not endIp:
+            pass
 
-    def CreateMenu(self):
-        menubar = wx.MenuBar()
+        self.updateScanHistory()
 
-        menuFile = wx.Menu()
-        fileMenus = [("Exit", "Exit Program", wx.ID_EXIT)]
-        for item, helpStr, wxId in fileMenus:
-            item = menuFile.Append(wxId, item, helpStr)
-            self.Bind(wx.EVT_MENU, self.OnMenu, item)
-        menubar.Append(menuFile, "&File")
+        start = [int(x) for x in startIp.split(".")]
+        end = [int(x) for x in endIp.split(".")]
+        if start[0:2] != end[0:2]:
+            self.stopScan()
+            return
 
-        menuHelp = wx.Menu()
-        helpMenus = [("Check for updates", "Check for updates", wx.ID_SETUP),
-                     ("About\tCtrl+F1", "Import Images From Folder", wx.ID_ABOUT)]
-        for item, helpStr, wxId in helpMenus:
-            item = menuHelp.Append(wxId, item, helpStr)
-            self.Bind(wx.EVT_MENU, self.OnMenu, item)
+        # is end IP before start IP?
+        for i in range(4):
+            if start[i] > end[i]:
+                start, end = end, start
+                break
 
-        menubar.Append(menuHelp, "&Help")
-        self.menubar = menubar
-        self.SetMenuBar(menubar)
+        logging.info("Populate IP range list from %s - %s" % (start, end))
+        temp = start
+        addresses = []
+        addresses.append(startIp)
 
-    def GetHostNames(self, msg):
-        hostnames = functions.LookupHostnames(self._addresses)
-        logging.info(hostnames)
-        for index, hostname in hostnames:
-            self.ipList.SetItem(index, 1, hostname)
+        #increment address until it reaches the end ip
+        logging.debug("{0}, {1}".format(temp, end))
+        while temp != end:
+            start[3] += 1
+            ip = ".".join([str(x) for x in temp])
+            addresses.append(ip)
 
-    def ParseIpString(self, ip):
+            if temp == end:
+                break
+            if temp[3] >= 256:
+                temp[3] = 0
+                temp[2] += 1
+
+        self._addresses = addresses
+        self.startScan()
+        
+    def onScanCheckBox(self, label):
+        logging.info("MainWindow->onScanCheckBox %s" % label)
+        value = self.scanConfig[label].checkState()
+        if label == "MAC Address" and value is 0:
+            self.scanConfig["Manufacturer"].setCheckState(2)
+        elif label == "Manufacturer" and value is 2:
+            self.scanConfig["MAC Address"].setCheckState(0)
+            
+    def onTimerCheck(self):
+        """Check if we have received any scan results"""
+        logging.debug("MainWindow->onTimerCheck")        
+        logging.debug("_hostnameCheck: {0}".format(self._hostnameCheck))
+        
+        msg = "Scanning: Addresses Pinged = {0}/{1}, ".format(self.addressResultsCount, len(self._addresses))
+        msg += "Checking Hostname(s) = {0}".format(len(self._hostnameCheck))
+        if self.addressResultsCount == len(self._addresses) and not self._hostnameCheck:
+            self.setStatusBarText("Finished "+msg)
+            self.stopScan()
+            return
+        self.setStatusBarText(msg)
+        
+        rm = [] 
+        for address, thread in self._hostnameCheckThreads.items():
+            thread.timeout -= TIMER_CHECK_MS 
+            if thread.timeout < 0:
+                rm.append(address)
+        
+        for addr in rm:
+            try:
+                self._hostnameCheck[addr].terminate()
+            except Exception as e:
+                logging.debug("MainWindow->onTimerCheck: %s" % e)
+                
+            del self._hostnameCheck[addr]
+            del self._hostnameCheckThreads[addr]
+            
+        
+        if len(self._hostnameCheckThreads.keys()) > MAX_HOSTNAME_CHECKS:
+            return    
+        elif self._hostnameCheck:
+            for address, thread in self._hostnameCheck.items():
+                if address in self._hostnameCheckThreads:
+                    continue
+                self._hostnameCheckThreads[address] = thread
+                self._hostnameCheckThreads[address].start()
+                return    
+                                
+    def parseIpString(self, ip):
         addresses = []
         # range?
         try:
@@ -301,424 +500,127 @@ class MainFrame(wx.Frame):
                 ipStart[3] += 1
                 ip = ".".join([str(x) for x in temp])
                 addresses.append(ip)
-
             return addresses
 
         except Exception as e:
-            print(e)
+            logging.debug(e)
 
         # single ip?
         try:
             ipAdd = [int(x) for x in ip.split(".")]
             if len(ipAdd) != 4:
                 return []
-
             if ipAdd[3] > 256:
                 return []
-
             addresses.append(ip)
             return addresses
 
         except Exception as e:
-            print(e)
+            logging.debug(e)
 
         return addresses
+    
+    def restoreConfigState(self):
+        """Restore application state from config"""
+        logging.info("Menubar->Help->restoreConfigState")
+        for item in self.config["ipStartHistory"]:
+            self.startIp.addItem(item)
+        for item in self.config["ipEndHistory"]:
+            self.endIp.addItem(item)
+            
+        if self.config["ipStartHistory"] == []:
+            self.startIp.addItem("192.168.0.0")
 
-    def OnFilterCheckBox(self, event=None):
-        self.OnColumn()
-
-    def OnListContextMenu(self, event):
-        try:
-            e = event.GetEventObject()
-            name = e.GetName()
+        if self.config["ipEndHistory"] == []:
+            self.endIp.addItem("192.168.0.255")
+            
+        # restore previous values
+        for item in self.config["customScanHistory"]:
+            self.stringIp.addItem(item)
+        if self.config["customScanHistory"] == []:
+            self.stringIp.addItem("192.168.0.1-255")
+        try:    
+            w, h = self.config["size"]
+            w, h = int(w), int(h)
+            self.resize(w, h)
         except:
-            id = event.GetId()
-            name = e.GetLabel(id)
-
-        selection = self.currentIpList.GetFirstSelected()
-        content = []
-        if name == "All":
-            while selection != -1:
-                c = []
-                for n,s in enumerate(self.ipHeaders):
-                    c.append(s+"="+self.currentIpList.GetItemText(selection, col=n))
-                content.append(",".join(c))
-                selection = self.currentIpList.GetNextSelected(selection)
-            content = "\n".join(content)
-        else:
-            while selection != -1:
-                iColumn = self.ipHeaders.index(name)
-                content.append(self.currentIpList.GetItemText(selection, col=iColumn))
-                selection = self.currentIpList.GetNextSelected(selection)
-            content = ",".join(content)
-
-        if self.clipBoard.Open():
-            self.clipBoard.SetData(wx.TextDataObject(content))
-            # keeps data on exit, X11 not supported
-            self.clipBoard.Flush()
-            self.clipBoard.Close()
-
-    def OnIpListRightClick(self, event):
-        """ handle both ip list and ip filtered list item context menu here"""
-        ipList = event.GetEventObject()
-        self.currentIpList = ipList
-        selection = ipList.GetFirstSelected()
-        if selection == -1:
-            return
-
-        menu = wx.Menu()
-        copyMenu = wx.Menu()
-        menu.AppendSubMenu(copyMenu, "Copy")
-        for label in ["All","IP Address","Hostname","Manufacturer","MAC Address"]:
-            if not label:
-                menu.AppendSeparator()
-                continue
-            item = copyMenu.Append(wx.ID_ANY, label)
-
-        menu.Bind(wx.EVT_MENU, self.OnListContextMenu)
-        self.PopupMenu(menu)
-
-    def OnButton(self, event):
-        e = event.GetEventObject()
-        label = e.GetLabel()
-
-    def OnClose(self, event):
-        """ save settings before quitting """
-        for label, chkBox in self.scanConfig.items():
-            self.app.config["scanConfig"][label] = chkBox.GetValue()
-        self.app.config["scanConfig"]["hostnameTimeout"] = self.spinHostTimeout.GetValue()
-        self.app.config["filter"]["showAliveOnly"] = self.chkShowAlive.GetValue()
-
-        self.app.SaveConfig()
-        event.Skip()
-
-    def OnColumn(self, event=None):
-        """ here we sort items by the column clicked """
-        items = []
-        for row in range(self.ipList.GetItemCount()):
-            item = []
-            if self.chkShowAlive.GetValue() and not self.ipList.GetItem(row, 2).GetText():
-                continue
-            for col in range(self.ipList.GetColumnCount()):
-                text = self.ipList.GetItem(row, col).GetText()
-                item.append(text)
-            items.append(item)
-
-        if not event:
-            index = self._sortBy
-            sorted_x = sorted(items, key=lambda x: x[index].lower())
-        else:
-            index = event.GetColumn()
-
-            if self._sortBy == index:
-                # already sorted, this time reverse order
-                sorted_x = sorted(items, key=lambda x: x[index].lower())
-                sorted_x = reversed(sorted_x)
-            else:
-                sorted_x = sorted(items, key=lambda x: x[index].lower())
-                self._sortBy = index
-
-        self.ipListFilter.DeleteAllItems()
-        for x in sorted_x:
-            self.ipListFilter.Append(x)
-
-    def OnCustomScan(self, event):
-        e = event.GetEventObject()
-        name = e.GetName()
-
-        if name == "Stop":
-            self.StopScan()
-            return
-
-        self.statusBar = "Scanning ..."
-        self.ipList.DeleteAllItems()
-        self.ipListFilter.DeleteAllItems()
-
-        self.btnScan.SetName("Stop")
-        self.btnCustomScan.SetName("Stop")
-        self.btnScan.SetBitmap(self.bitmaps["stop"])
-        self.btnCustomScan.SetBitmap(self.bitmaps["stop"])
-
-        stringIp = self.stringIp.GetValue()
-        if not stringIp:
-            self.StopScan()
-            return
-
-        self.UpdateScanHistory()
-        addresses = []
-        stringIp = stringIp.split(",")
-        for ip in stringIp:
-            res = self.ParseIpString(ip)
-            for add in res:
-                if add in addresses:
-                    continue
-                addresses.append(add)
-
-        self._addresses = addresses
-        for addr in self._addresses:
-            self._addressDict[addr] = {"index": self.ipList.Append([addr])}
-
-        self.pingThread = functions.PingAddress(addresses, self._addressResults, self._stopThread, self.scanParams)
-
-        self.scanTotalCount = len(addresses)
-        self.StartTimerCheck()
-
-    def OnMenu(self, event):
-        e = event.GetEventObject()
-        id = event.GetId()
-
-        if id == wx.ID_ABOUT:
-            if self._aboutFrame:
-                self._aboutFrame.Raise()
-            else:
-                self._aboutFrame = AboutDialog()
-
-        elif id == wx.ID_EXIT:
-            self.Close()
-
-        elif id == wx.ID_SETUP:
-            if self._checkUpdateDialog:
-                self._checkUpdateDialog.Raise()
-            else:
-                self._checkUpdateDialog = CheckForUpdates()
-
-    def OnScan(self, event):
-        e = event.GetEventObject()
-        name = e.GetName()
-
-        if name == "Stop":
-            self.StopScan()
-            return
-
-        self.statusBar = "Scanning ..."
-        self.ipList.DeleteAllItems()
-        self.ipListFilter.DeleteAllItems()
-
-        self.btnScan.SetName("Stop")
-        self.btnCustomScan.SetName("Stop")
-        self.btnScan.SetBitmap(self.bitmaps["stop"])
-        self.btnCustomScan.SetBitmap(self.bitmaps["stop"])
-
-        startIp = self.startIp.GetValue()
-        endIp = self.endIp.GetValue()
-
-        if not startIp and not endIp:
-            logging.info("No valid IP range defined")
-            e.SetLabel("Start")
-            return
-        if not endIp:
             pass
-
-        self.UpdateScanHistory()
-
-        start = [int(x) for x in startIp.split(".")]
-        end = [int(x) for x in endIp.split(".")]
-        if start[0:2] != end[0:2]:
-            self.StopScan()
-            return
-
-        # is end IP before start IP?
-        for i in range(4):
-            if start[i] > end[i]:
-                start, end = end, start
-                break
-
-        logging.info("Populate IP range list from %s - %s" % (start, end))
-
-        temp = start
-        addresses = []
-        addresses.append(startIp)
-
-        #increment address until it reaches the end ip
-        print(temp,end)
-        while temp != end:
-            start[3] += 1
-            ip = ".".join([str(x) for x in temp])
-            addresses.append(ip)
-
-            if temp == end:
-                break
-            if temp[3] >= 256:
-                temp[3] = 0
-                temp[2] += 1
-
-        self._addresses = addresses
+            
+    def saveConfig(self):
+        logging.info("Menubar->Help->saveConfig")
+        
+        self.config["scanConfig"]["hostnameTimeout"] = self.spinHostTimeout.value()
+        self.config["filter"]["showAliveOnly"] = self.chkShowAlive.checkState()
+        self.config["size"] = [self.frameGeometry().width(),
+                               self.frameGeometry().height()]
+        
+        with open(self.configPath, "w") as file:
+            json.dump(self.config, file, sort_keys=True, indent=2)
+        logging.debug(self.config)
+        
+    def setStatusBarText(self, message, timeout=0):
+        logging.debug("MainWindow->setStatusBarText")
+        self.statusBar().showMessage(message, timeout)
+    
+    def showAbout(self):
+        """Show the About wndow"""
+        logging.info("Menubar->Help->showAbout")
+        AboutDialog(self)
+        
+    def startScan(self):
+        logging.info("startScan: addresses={0}".format(len(self._addresses)))
+        addresses = self._addresses
+        self.scanTotalCount = len(addresses) 
         for addr in self._addresses:
-            self._addressDict[addr] = {"index": self.ipList.Append([addr])}
+            self._addressDict[addr] = {"index": self.ipModel.rowCount()}
+            self.appendIpEntry({"IP Address": addr})
 
-        self.pingThread = functions.PingAddress(addresses, self._addressResults, self._stopThread, self.scanParams)
-
-        self.scanTotalCount = len(addresses)
-        self.StartTimerCheck()
-
-    def OnScanCheckBox(self, event):
-        e = event.GetEventObject()
-        label = e.GetLabel()
-        value = e.GetValue()
-        if label == "MAC Address" and value is False:
-            self.scanConfig["Manufacturer"].SetValue(value)
-        elif label == "Manufacturer" and value is True:
-            self.scanConfig["MAC Address"].SetValue(value)
-
-    def OnTimerCheck(self, event):
-        if self.addressResultsCount < len(self._addressResults):
-            result = self._addressResults[self.addressResultsCount]
-            index = self._addressDict[result["IP Address"]]["index"]
-            self.addressResultsCount += 1
-
-            if self.scanConfig["Hostname"].GetValue() is True and result["Ping"]:
-                timeout = self.spinHostTimeout.GetValue()
-                if timeout == -1:
-                    timeout = 5
-                buffer = []
-                thread = functions.LookupHostname(result["IP Address"], buffer, timeout)
-                self._hostnameCheck.append((index, thread, buffer))
-            for k, v in result.items():
-                try:
-                    self.ipList.SetItem(index, self.ipHeaders.index(k), v)
-                except Exception as e:
-                    print(e)
-
-            self.OnColumn()
-
-        msg = "Scanning: Addresses Pinged = {0}/{1}".format(self.addressResultsCount, self.scanTotalCount)
-        msg += ", Hostname Checks Remaining = {0}".format(len(self._hostnameCheck))
-        self.statusBar = msg
-
-        if self._hostnameCheck:
-            for x in [4,3,2,1,0]: # max no. of running checks
-                try:
-                    index, thread, buffer = self._hostnameCheck[x]
-                    if not thread.beginCheck:
-                        thread.beginCheck = True
-                    elif thread.finished:
-                        print(index, self.ipHeaders.index("Hostname"), str(buffer))
-                        self.ipList.SetItem(index, self.ipHeaders.index("Hostname"), str(buffer[-1]))
-                        ipAdd = self.ipList.GetItemText(index)
-                        for filterIndex in range(self.ipListFilter.GetItemCount()):
-                            if self.ipListFilter.GetItemText(filterIndex) == ipAdd:
-                                self.ipListFilter.SetItem(filterIndex, self.ipHeaders.index("Hostname"), str(buffer[-1]))
-                        del self._hostnameCheck[x]
-                except:
-                    continue
-
-        elif True in self._stopThread:
-            self.addressResultsCount = 0
-            while self.pingThread.is_alive():
-                continue
-            self.StopScan()
-            self.btnScan.SetLabel("Scan")
-            self.timerCheck.Stop()
-
-    def OnTimerHostTimeout(self, event):
-        for h in self._hostnameCheck:
-            index, thread, buffer = h
-            if thread.beginCheck:
-                thread.timeout -= 1
-
-    def SetupBitmaps(self):
-        for label in ["start", "stop"]:
-            image = wx.Image(resource_path("images/{0}.png".format(label)))
-            image.Rescale(24,24)
-            self._bitmaps[label] = wx.Bitmap(image)
-
-    def StartTimerCheck(self):
+        self.pingThread = functions.PingAddress(self, addresses, self.scanParams)
+        self.timerCheck.start(TIMER_CHECK_MS)
+    
+    def startTimerCheck(self):
+        logging.info("MainWindow->startTimerCheck")
+        self.timerCheck.start(TIMER_CHECK_MS)
+        
+    def stopScan(self):
+        logging.info("MainWindow->stopScan")
         self.addressResultsCount = 0
-        self.timerCheck.Start(100)
-
-    def StopScan(self):
-        self._stopThread.append(True)
-        self.addressResultsCount = 0
-        self.timerCheck.Stop()
+        self.timerCheck.stop()
         if self.pingThread:
-            while self.pingThread.is_alive():
-                continue
-        self.CleanScan()
-        self.statusBar = "Scan Finished: Addresses Checked = {0}".format(self.scanTotalCount)
-
-    def UpdateScanHistory(self):
+            self.pingThread.terminate()
+        for t in self._hostnameCheckThreads.values():
+            t.terminate()
+        self.cleanScan()
+        self.setStatusBarText("Scan Finished: Addresses Checked = {0}".format(self.scanTotalCount))
+        
+    def updateScanHistory(self):
+        """Save scan history to config"""
+        logging.info("MainWindow->updateScanHistory")
         for cbox, dictKey in [(self.startIp, "ipStartHistory"),
                               (self.endIp, "ipEndHistory"),
                               (self.stringIp, "customScanHistory")]:
-            count = cbox.GetCount()
-            items = [cbox.GetString(x) for x in range(count)]
-            value = cbox.GetValue()
+            items = [cbox.itemText(x) for x in range(cbox.count())]
+            value = cbox.currentText()
             if value in items:
                 index = items.index(value)
                 del items[index]
             items.insert(0, value)
 
-            cbox.Clear()
+            cbox.clear()
             for item in items:
-                cbox.Append(item)
-            cbox.SetValue(value)
-
+                cbox.addItem(item)
             try:
                 items = items[:10]
             except:
                 pass
-            self.app.config[dictKey] = items
+            self.config[dictKey] = items
+            
+        self.saveConfig()
 
-class Main(wx.App):
+def main():    
+    app = QApplication(sys.argv)
+    gui = MainWindow()
+    sys.exit(app.exec_())
 
-    def __init__(self, portable=False):
-        wx.App.__init__(self)
-
-        self._portable = portable
-        self._config = self.appDefaults
-        self.LoadConfig()
-        SplashScreen(800)
-        frame = MainFrame(portable=portable)
-
-    @property
-    def appDefaults(self):
-        return {
-            "pos": None,
-            "size": None,
-            "ipStartHistory": [],
-            "ipEndHistory": [],
-            "customScanHistory": [],
-            "scanConfig": {"hostnameTimeout":"5", "Hostname":True, "Manufacturer":False, "MAC Address": True},
-            "filter": {"showAliveOnly": True}
-        }
-
-    @property
-    def config(self):
-        return self._config
-
-    @property
-    def configPath(self):
-        if not self._portable:
-            sp = wx.StandardPaths.Get()
-            path = sp.GetUserConfigDir()
-            dirPath = os.path.join(path, "Zippy IP Scanner")
-            path = os.path.join(dirPath, "config.json")
-            if not os.path.exists(os.path.join(dirPath)):
-                os.makedirs(dirPath)
-        else:
-            path = "config.json"
-        return path
-
-    def LoadConfig(self):
-        # try to load settings
-        try:
-            with open(self.configPath, "r") as file:
-                data = json.load(file)
-                file.close()
-                self.config.update(data)
-        except Exception as e:
-            print("Could not load settings file:", e)
-            self.SaveConfig()
-
-    def SaveConfig(self):
-        with open(self.configPath, "w") as file:
-            json.dump(self.config, file, sort_keys=True, indent=2)
-        print(self.config)
-
-        
-def main():
-    app = Main(portable=False)
-    app.MainLoop()
-        
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
