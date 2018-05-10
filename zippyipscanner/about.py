@@ -35,7 +35,7 @@ class AboutDialog(QDialog):
         super(AboutDialog, self).__init__(parent)
         
         self.setWindowTitle("About Zippy Ip Scanner")
-        self.setWindowIcon(QtGui.QIcon('zippyipscanner.ico'))
+        self.setWindowIcon(QtGui.QIcon(parent.appPath+"zippyipscanner.ico"))
         self.initGUI()
         self.show()
         
