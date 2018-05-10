@@ -549,11 +549,14 @@ class MainWindow(QMainWindow):
     def saveConfig(self):
         logging.info("Menubar->Help->saveConfig")
         
-        self.config["scanConfig"]["hostnameTimeout"] = self.spinHostTimeout.value()
-        self.config["filter"]["showAliveOnly"] = self.chkShowAlive.checkState()
-        self.config["size"] = [self.frameGeometry().width(),
-                               self.frameGeometry().height()]
-        
+        try:
+            self.config["scanConfig"]["hostnameTimeout"] = self.spinHostTimeout.value()
+            self.config["filter"]["showAliveOnly"] = self.chkShowAlive.checkState()
+            self.config["size"] = [self.frameGeometry().width(),
+                                   self.frameGeometry().height()]
+        except Exception as e:
+            logging.debug(e)
+            
         with open(self.configPath, "w") as file:
             json.dump(self.config, file, sort_keys=True, indent=2)
         logging.debug(self.config)
