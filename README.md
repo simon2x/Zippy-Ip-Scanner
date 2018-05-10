@@ -1,6 +1,6 @@
 ## Zippy Ip Scanner
 
-<img align="left" src="src/splash.png?raw=true"/>
+<img align="left" src="zippyipscanner/splash.png?raw=true"/>
 
 Zippy Ip Scanner is a free, open-source cross-platform IP scanning application written in python.
 
