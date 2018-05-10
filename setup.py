@@ -66,14 +66,14 @@ setup(
         "requests",
     ],
 
-    license="GPLv2",
+    license="GPLv3",
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         # 'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: End Users/Desktop',
         'Topic :: Internet',
-        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
