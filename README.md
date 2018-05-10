@@ -1,6 +1,6 @@
 ## Zippy Ip Scanner
 
-<img align="left" src="src/splash.png?raw=true"/>
+<img align="left" src="zippyipscanner/splash.png?raw=true"/>
 
 Zippy Ip Scanner is a free, open-source cross-platform IP scanning application written in python.
 
@@ -19,18 +19,9 @@ Zippy Ip Scanner is a free, open-source cross-platform IP scanning application w
 
 <img align="center" src="resources/images/screen2.png?raw=true"/>
 
-<img align="center" src="resources/images/screen3.png?raw=true"/>
-
-At the moment, only portable builds are available on linux 64-bit. Check the ```src/zippyscanner64 - portable.spec```
-file.
-
-If you would like to freeze the code yourself, install ```pyinstaller``` via ```pip``` and run
-
-```pyinstaller zippyscanner64 - portable.spec```
-
 # Running on Linux
 
-As shown in the screenshot above, right click on downloaded binary (see ```Download Latest Releases``` below for downloads) and check ```Allow executing file as program```.
+Install via pip
 
 
 ## Download Latest Releases

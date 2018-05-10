@@ -90,7 +90,7 @@ def LookupMacAddress(address):
     else:
         mac = "n/a"
         
-    logging.info("address: %s, mac: %s" % (address, mac))    
+    logging.debug("address: %s, mac: %s" % (address, mac))    
     
     return mac
     
@@ -102,10 +102,10 @@ def LookupManufacturers(mac):
         result = urllib.request.urlopen(req).read()
         result = result.decode("utf-8")
     except Exception as e:
-        logging.info("LookupManufacturers Exception: {0}".format(e))
+        logging.debug("LookupManufacturers Exception: {0}".format(e))
         return ""
     
-    logging.info("LookupManufacturers:Result: %s" % result)
+    logging.debug("LookupManufacturers:Result: %s" % result)
     # logging.debug("request URL: %s" % r.text)
     result = json.loads(result)["result"]
     

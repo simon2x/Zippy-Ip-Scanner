@@ -21,9 +21,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 import os
 import sys
 
+appPath = ""
 if __name__ != "__main__":
     # this allows avoid changing relative imports
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+    appPath = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 import functions
 import json
@@ -45,8 +47,8 @@ from version import __version__
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STOP_ICON = 'images/stop.png'
-START_ICON = 'images/start.png'
+STOP_ICON = appPath+'images/stop.png'
+START_ICON = appPath+'images/start.png'
 MAX_HOSTNAME_CHECKS = 5
 TIMER_CHECK_MS = 100
 SPLASH_TIMEOUT = 1200
@@ -71,8 +73,8 @@ class MainWindow(QMainWindow):
         self.ipHeaders = ["IP Address","Hostname","Ping","TTL","Manufacturer","MAC Address"]
         self.currentIpList = None
         
-        self.setWindowTitle('Zippy IP Scanner v{0}'.format(__version__))
-        self.setWindowIcon(QtGui.QIcon('zippyipscanner.ico'))
+        self.setWindowTitle("Zippy IP Scanner v{0}".format(__version__))
+        self.setWindowIcon(QtGui.QIcon(appPath+"zippyipscanner.ico"))
         
         self._config = self.appDefaults
         self.loadConfig()
@@ -98,12 +100,24 @@ class MainWindow(QMainWindow):
         }
 
     @property
+    def appPath(self):
+        return appPath
+        
+    @property
     def config(self):
         return self._config
         
     @property
     def configPath(self):
-        path = "config.json"
+        if sys.platform == "linux":
+            from os.path import expanduser, join
+            from os import system
+            home = expanduser("~")
+            base = "{0}/.local/share/zippyipscanner/".format(home)
+            system("mkdir -p {0}".format(base))        
+            path = join(base, "config.json")
+        else:
+            path = "config.json"
         return path
         
     @property
@@ -309,7 +323,7 @@ class MainWindow(QMainWindow):
         self.grid.addWidget(gboxResults, row, 0, -1, -1)
         
     def initSplash(self):
-        self.splash = QSplashScreen(QPixmap("splash.png"), QtCore.Qt.WindowStaysOnTopHint)
+        self.splash = QSplashScreen(QPixmap(appPath+"splash.png"), QtCore.Qt.WindowStaysOnTopHint)
         self.splash.show()
         
         QtCore.QTimer.singleShot(SPLASH_TIMEOUT, lambda: self.splash.close())
@@ -423,6 +437,7 @@ class MainWindow(QMainWindow):
     def onScanCheckBox(self, label):
         logging.info("MainWindow->onScanCheckBox %s" % label)
         value = self.scanConfig[label].checkState()
+        self.config["scanConfig"][label] = value
         if label == "MAC Address" and value is 0:
             self.scanConfig["Manufacturer"].setCheckState(2)
         elif label == "Manufacturer" and value is 2:
@@ -553,12 +568,17 @@ class MainWindow(QMainWindow):
             self.config["scanConfig"]["hostnameTimeout"] = self.spinHostTimeout.value()
             self.config["filter"]["showAliveOnly"] = self.chkShowAlive.checkState()
             self.config["size"] = [self.frameGeometry().width(),
-                                   self.frameGeometry().height()]
+                                   self.frameGeometry().height()]                                   
+            for label in ["Hostname", "MAC Address", "Manufacturer"]:
+                self.config["scanConfig"][label] = scanConfig[label].checkState()
         except Exception as e:
             logging.debug(e)
-            
-        with open(self.configPath, "w") as file:
-            json.dump(self.config, file, sort_keys=True, indent=2)
+        
+        try:
+            with open(self.configPath, "w") as file:
+                json.dump(self.config, file, sort_keys=True, indent=2)
+        except PermissionError:
+            logging.info("PermissionError: you do not permission to save config")
         logging.debug(self.config)
         
     def setStatusBarText(self, message, timeout=0):
@@ -578,7 +598,12 @@ class MainWindow(QMainWindow):
             self._addressDict[addr] = {"index": self.ipModel.rowCount()}
             self.appendIpEntry({"IP Address": addr})
 
-        self.pingThread = functions.PingAddress(self, addresses, self.scanParams)
+        logging.info("startScan: scanParams={0}".format(self.scanParams))
+        # we cannot get Manufacturer if user disables MAC
+        params = self.scanParams
+        if params["MAC Address"] == 0:
+            params["Manufacturer"] = 0
+        self.pingThread = functions.PingAddress(self, addresses, params)
         self.timerCheck.start(TIMER_CHECK_MS)
     
     def startTimerCheck(self):
