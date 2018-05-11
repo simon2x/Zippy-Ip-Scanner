@@ -65,12 +65,12 @@ class WidgetTestCase(unittest.TestCase):
         r = self.main.scanParams
         assert isinstance(r, dict)
         
-    def test_appendIpEntry(self):
-        r = self.main.appendIpEntry({"IP Address": "Bar"})
+    # def test_appendIpEntry(self):
+        # r = self.main.appendIpEntry({"IP Address": "Bar"})
         
-    def test_clearIpListItems(self):
-        self.main.appendIpEntry({"IP Address": "Bar"})
-        assert self.main.ipModel.rowCount() == 1
+    # def test_clearIpListItems(self):
+        # self.main.appendIpEntry({"IP Address": "Bar"})
+        # assert self.main.ipModel.rowCount() == 1
             
     def test_cleanScan(self):
         r = self.main.cleanScan()    
