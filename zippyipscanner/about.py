@@ -18,6 +18,12 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>
 """
 
+if __name__ != "__main__":
+    # this allows avoid changing relative imports
+    import os
+    import sys
+    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
 import logging
 from version import __version__
 from license import __license__

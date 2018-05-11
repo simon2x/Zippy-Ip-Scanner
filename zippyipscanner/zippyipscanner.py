@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
             try:
                 self.ipModel.setData(self.ipModel.index(self.ipModel.rowCount() - 1, col), data[header])
             except Exception as e:
-                logging.debug("appendIpEntry: %" % e)
+                logging.debug("appendIpEntry: %s" % e)
 
     def closeEvent(self, event):
         self.stopScan()

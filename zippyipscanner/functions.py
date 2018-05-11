@@ -28,13 +28,6 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
 
 
-def GetHostByAddress(address, hostname):
-    try:
-        hostname.append(socket.gethostbyaddr(address)[0])
-    except socket.herror:
-        hostname.append("n/a")
-
-
 class LookupHostname(QtCore.QThread):
 
     signal = pyqtSignal(dict)
