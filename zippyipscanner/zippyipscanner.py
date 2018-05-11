@@ -32,33 +32,33 @@ import json
 import logging
 from functools import partial
 
-from PyQt5 import QtGui, QtCore
-from PyQt5.QtCore import (QDate, QDateTime, QRegExp, QSortFilterProxyModel, 
-                          Qt, QTime, QSize, QTimer, pyqtSignal, pyqtSlot)
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
+from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
+                             QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
+                             QCheckBox, QComboBox, QToolButton, QLabel, QSpinBox,
+                             QTreeView, QAction)
+from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
 
 from about import AboutDialog
-# from updatechecker import CheckForUpdates
-
 from version import __version__
 
-#----- logging -----#
+# Logging Configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STOP_ICON = appPath+'images/stop.png'
-START_ICON = appPath+'images/start.png'
+STOP_ICON = appPath + "images/stop.png"
+START_ICON = appPath + "images/start.png"
 MAX_HOSTNAME_CHECKS = 5
 TIMER_CHECK_MS = 100
 SPLASH_TIMEOUT = 1200
 
+
 class MainWindow(QMainWindow):
-    
+
     def __init__(self):
         super(MainWindow, self).__init__()
         logging.debug("MainWindow ")
-                
+
         self._isScanning = False
         self._bitmaps = {}
         # self.SetupBitmaps()
@@ -70,23 +70,23 @@ class MainWindow(QMainWindow):
         self._hostnameCheckThreads = {}
         self.scanTotalCount = 0
         self.pingThread = None
-        self.ipHeaders = ["IP Address","Hostname","Ping","TTL","Manufacturer","MAC Address"]
+        self.ipHeaders = ["IP Address", "Hostname", "Ping", "TTL", "Manufacturer", "MAC Address"]
         self.currentIpList = None
-        
+
         self.setWindowTitle("Zippy IP Scanner v{0}".format(__version__))
-        self.setWindowIcon(QtGui.QIcon(appPath+"zippyipscanner.ico"))
-        
+        self.setWindowIcon(QIcon(appPath + "zippyipscanner.ico"))
+
         self._config = self.appDefaults
         self.loadConfig()
         self.createMenuBar()
         self.statusBar()
-        self.initGUI()  
+        self.initGUI()
         self.initTimers()
         self.restoreConfigState()
-        
+
         self.initSplash()
         self.show()
-                 
+
     @property
     def appDefaults(self):
         return {
@@ -95,18 +95,18 @@ class MainWindow(QMainWindow):
             "ipStartHistory": [],
             "ipEndHistory": [],
             "customScanHistory": [],
-            "scanConfig": {"hostnameTimeout":"5", "Hostname":2, "Manufacturer":2, "MAC Address": 2},
+            "scanConfig": {"hostnameTimeout": "5", "Hostname": 2, "Manufacturer": 2, "MAC Address": 2},
             "filter": {"showAliveOnly": 2}
         }
 
     @property
     def appPath(self):
         return appPath
-        
+
     @property
     def config(self):
         return self._config
-        
+
     @property
     def configPath(self):
         if sys.platform == "linux":
@@ -114,64 +114,64 @@ class MainWindow(QMainWindow):
             from os import system
             home = expanduser("~")
             base = "{0}/.local/share/zippyipscanner/".format(home)
-            system("mkdir -p {0}".format(base))        
+            system("mkdir -p {0}".format(base))
             path = join(base, "config.json")
         else:
             path = "config.json"
         return path
-        
+
     @property
     def isScanning(self):
         return self._isScanning
-        
+
     @isScanning.setter
     def isScanning(self, value):
-        self._isScanning = value 
-           
+        self._isScanning = value
+
     @pyqtSlot(str)
     def lookupTimedOut(self, address):
         logging.info(address)
         del self._hostnameCheck[address]
-        
+
     @pyqtSlot(str)
     def receiveDebugSignal(self, str):
-        logging.debug(str)  
-        
+        logging.debug(str)
+
     @pyqtSlot(dict)
     def receiveHostnameResult(self, result):
         logging.debug(result)
-           
+
         if not self.isScanning:
             return
-            
+
         try:
-            index = self._addressDict[result["address"]]["index"] 
+            index = self._addressDict[result["address"]]["index"]
             self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index("Hostname")), result["hostname"])
             del self._hostnameCheck[result["address"]]
             del self._hostnameCheckThreads[result["address"]]
-        except KeyError: 
+        except KeyError:
             logging.debug(KeyError)
-        
+
     @pyqtSlot(dict)
     def receiveScanResult(self, result):
         logging.debug(result)
-        
+
         if not self.isScanning:
             return
-        
-        index = self._addressDict[result["IP Address"]]["index"]        
-        if self.scanConfig["Hostname"].checkState() == 2 and result["Ping"]:            
+
+        index = self._addressDict[result["IP Address"]]["index"]
+        if self.scanConfig["Hostname"].checkState() == 2 and result["Ping"]:
             timeout = self.spinHostTimeout.value()
             if timeout == -1:
                 timeout = 5
             self._hostnameCheck[result["IP Address"]] = functions.LookupHostname(self, result["IP Address"], timeout)
         self.addressResultsCount += 1
-        for k, v in result.items():            
+        for k, v in result.items():
             try:
-                self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index(k)), v)                
+                self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index(k)), v)
             except Exception as e:
                 logging.info("onTimerCheck::Exception: %s, k=%s, v=%s" % e, k, v)
-        
+
     @property
     def scanParams(self):
         params = {}
@@ -179,63 +179,63 @@ class MainWindow(QMainWindow):
             params[label] = chkBox.checkState()
         del params["Hostname"]
         return params
-        
+
     def appendIpEntry(self, data):
         self.ipModel.insertRow(self.ipModel.rowCount())
         for col, header in enumerate(self.ipHeaders):
             try:
-                self.ipModel.setData(self.ipModel.index(self.ipModel.rowCount()-1, col), data[header])
-            except:
-                pass
-           
+                self.ipModel.setData(self.ipModel.index(self.ipModel.rowCount() - 1, col), data[header])
+            except Exception as e:
+                logging.debug("appendIpEntry: %" % e)
+
     def closeEvent(self, event):
         self.stopScan()
         self.saveConfig()
         if self.splash:
             self.splash.close()
         event.accept()
-        
+
     def clearIpListItems(self):
         self.ipModel.removeRows(0, self.ipModel.rowCount())
-    
-    def cleanScan(self):        
+
+    def cleanScan(self):
         self._addressResults = []
         self._addressDict = {}
         self._addresses = {}
         self._hostnameCheck = {}
         self._hostnameCheckThreads = {}
         self.pingThread = None
-        
-        self.btnScan.setIcon(QtGui.QIcon(START_ICON))
-        self.btnCustomScan.setIcon(QtGui.QIcon(START_ICON))
+
+        self.btnScan.setIcon(QIcon(START_ICON))
+        self.btnCustomScan.setIcon(QIcon(START_ICON))
         self.isScanning = False
-        
+
     def createMenuBar(self):
         exitAction = QAction("&Exit", self)
         exitAction.setShortcut("Ctrl+Q")
         exitAction.setStatusTip('Exit application...')
         # exitAction.triggered.connect(QtCore.QCoreApplication.instance().quit)
         exitAction.triggered.connect(self.close)
-        
+
         aboutAction = QAction("&About", self)
         aboutAction.setShortcut("Ctrl+F1")
         aboutAction.setStatusTip('About')
         aboutAction.triggered.connect(self.showAbout)
-        
+
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('&File')
         fileMenu.addAction(exitAction)
-        
+
         helpMenu = mainMenu.addMenu('&Help')
         helpMenu.addAction(aboutAction)
-        
+
     def createIpModel(self, parent):
         model = QStandardItemModel(0, 6, parent)
         for col, header in enumerate(self.ipHeaders):
             logging.info("Adding column %s" % str(header))
             model.setHeaderData(col, Qt.Horizontal, header)
         return model
-        
+
     def initGUI(self):
         row = 0
         widget = QWidget()
@@ -246,49 +246,49 @@ class MainWindow(QMainWindow):
         # self.grid.setColumnStretch(4, 1)
         self.grid.setSpacing(5)
         widget.setLayout(self.grid)
-        
+
         # scan range
-        gboxScanLayout = QHBoxLayout()  
-        gboxScan = QGroupBox("Scan Range", self) 
+        gboxScanLayout = QHBoxLayout()
+        gboxScan = QGroupBox("Scan Range", self)
         gboxScan.setLayout(gboxScanLayout)
         self.grid.addWidget(gboxScan, row, 0, 1, 2)
-        
+
         self.startIp = QComboBox(self)
         self.startIp.setEditable(True)
         self.endIp = QComboBox(self)
         self.endIp.setEditable(True)
         gboxScanLayout.addWidget(self.startIp)
         gboxScanLayout.addWidget(self.endIp)
-        
+
         self.btnScan = QToolButton(self)
         self.btnScan.clicked.connect(self.onScan)
-        self.btnScan.setIcon(QtGui.QIcon(START_ICON))
-        self.btnScan.setIconSize(QSize(48,32))
+        self.btnScan.setIcon(QIcon(START_ICON))
+        self.btnScan.setIconSize(QSize(48, 32))
         gboxScanLayout.addWidget(self.btnScan)
-       
-        # custom scan        
+
+        # custom scan
         row += 1
-        gboxCustomScanLayout = QHBoxLayout()  
-        gboxCustomScan = QGroupBox("Custom Scan Range", self) 
+        gboxCustomScanLayout = QHBoxLayout()
+        gboxCustomScan = QGroupBox("Custom Scan Range", self)
         gboxCustomScan.setLayout(gboxCustomScanLayout)
         self.grid.addWidget(gboxCustomScan, row, 0, 1, 2)
         self.stringIp = QComboBox(self)
         self.stringIp.setEditable(True)
         gboxCustomScanLayout.addWidget(self.stringIp)
         self.btnCustomScan = QToolButton(self)
-        self.btnCustomScan.setIcon(QtGui.QIcon(START_ICON))
-        self.btnCustomScan.setIconSize(QSize(48,32))
+        self.btnCustomScan.setIcon(QIcon(START_ICON))
+        self.btnCustomScan.setIconSize(QSize(48, 32))
         self.btnCustomScan.clicked.connect(self.onCustomScan)
         gboxCustomScanLayout.addWidget(self.btnCustomScan)
-               
+
         # scan configuration
         row += 1
         scanConfBox = QHBoxLayout()
         gboxScanConfig = QGroupBox("Scan Configurations", self)
-        gboxScanConfig.setLayout(scanConfBox)        
+        gboxScanConfig.setLayout(scanConfBox)
         timeoutLabel = QLabel(self)
-        timeoutLabel.setText("Hostname Timeout [-1=5s]")        
-        self.spinHostTimeout = QSpinBox(self)        
+        timeoutLabel.setText("Hostname Timeout [-1=5s]")
+        self.spinHostTimeout = QSpinBox(self)
         self.spinHostTimeout.setMinimum(-1)
         self.spinHostTimeout.setMaximum(99)
         self.spinHostTimeout.setValue(int(self.config["scanConfig"]["hostnameTimeout"]))
@@ -301,13 +301,13 @@ class MainWindow(QMainWindow):
             self.scanConfig[label].setCheckState(self.config["scanConfig"][label])
             self.scanConfig[label].stateChanged.connect(partial(self.onScanCheckBox, label))
             scanConfBox.addWidget(self.scanConfig[label])
-        self.grid.addWidget(gboxScanConfig, row, 0)#, 1, 2)
+        self.grid.addWidget(gboxScanConfig, row, 0)
 
         # results
         row += 1
         self.grid.setRowStretch(row, 1)
-        gboxLayout = QVBoxLayout()  
-        gboxResults = QGroupBox("Results", self) 
+        gboxLayout = QVBoxLayout()
+        gboxResults = QGroupBox("Results", self)
         gboxResults.setLayout(gboxLayout)
         self.chkShowAlive = QCheckBox("Show Alive Only", self)
         self.chkShowAlive.setCheckState(self.config["filter"]["showAliveOnly"])
@@ -321,18 +321,18 @@ class MainWindow(QMainWindow):
         self.ipList.setModel(self.ipModel)
         gboxLayout.addWidget(self.ipList)
         self.grid.addWidget(gboxResults, row, 0, -1, -1)
-        
+
     def initSplash(self):
-        self.splash = QSplashScreen(QPixmap(appPath+"splash.png"), QtCore.Qt.WindowStaysOnTopHint)
+        self.splash = QSplashScreen(QPixmap(appPath + "splash.png"), Qt.WindowStaysOnTopHint)
         self.splash.show()
-        
-        QtCore.QTimer.singleShot(SPLASH_TIMEOUT, lambda: self.splash.close())
-        
+
+        QTimer.singleShot(SPLASH_TIMEOUT, lambda: self.splash.close())
+
     def initTimers(self):
         logging.debug("MainWindow->initTimers")
         self.timerCheck = QTimer()
         self.timerCheck.timeout.connect(self.onTimerCheck)
-    
+
     def loadConfig(self):
         """ try to load settings or create/overwrite config file"""
         logging.info("MainWindow->loadConfig")
@@ -344,24 +344,24 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logging.info("Could Not Load Settings File:", e)
             self.saveConfig()
-    
+
     def onCustomScan(self):
         logging.info("MainWindow->onCustomScan")
-        
+
         if self.isScanning is True:
             self.stopScan()
             return
         self.isScanning = True
         self.setStatusBarText("Scanning ...")
-        self.btnScan.setIcon(QtGui.QIcon(STOP_ICON))
-        self.btnCustomScan.setIcon(QtGui.QIcon(STOP_ICON))
+        self.btnScan.setIcon(QIcon(STOP_ICON))
+        self.btnCustomScan.setIcon(QIcon(STOP_ICON))
         self.clearIpListItems()
-        
+
         stringIp = self.stringIp.currentText()
         if not stringIp:
             self.stopScan()
             return
-        
+
         self.updateScanHistory()
         addresses = []
         stringIp = stringIp.split(",")
@@ -371,13 +371,13 @@ class MainWindow(QMainWindow):
                 if add in addresses:
                     continue
                 addresses.append(add)
-        
+
         self._addresses = addresses
         self.startScan()
-        
+
     def onFilterCheckBox(self, state):
         self.saveConfig()
-            
+
     def onScan(self, event):
         """Scan range"""
         logging.info("MainWindow->onScan")
@@ -386,8 +386,8 @@ class MainWindow(QMainWindow):
             return
         self.isScanning = True
         self.setStatusBarText("Scanning ...")
-        self.btnScan.setIcon(QtGui.QIcon(STOP_ICON))
-        self.btnCustomScan.setIcon(QtGui.QIcon(STOP_ICON))
+        self.btnScan.setIcon(QIcon(STOP_ICON))
+        self.btnCustomScan.setIcon(QIcon(STOP_ICON))
         self.clearIpListItems()
 
         startIp = self.startIp.currentText()
@@ -418,7 +418,7 @@ class MainWindow(QMainWindow):
         addresses = []
         addresses.append(startIp)
 
-        #increment address until it reaches the end ip
+        # increment address until it reaches the end ip
         logging.debug("{0}, {1}".format(temp, end))
         while temp != end:
             start[3] += 1
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
 
         self._addresses = addresses
         self.startScan()
-        
+
     def onScanCheckBox(self, label):
         logging.info("MainWindow->onScanCheckBox %s" % label)
         value = self.scanConfig[label].checkState()
@@ -442,46 +442,45 @@ class MainWindow(QMainWindow):
             self.scanConfig["Manufacturer"].setCheckState(2)
         elif label == "Manufacturer" and value is 2:
             self.scanConfig["MAC Address"].setCheckState(0)
-            
+
     def onTimerCheck(self):
         """Check if we have received any scan results"""
-        logging.debug("MainWindow->onTimerCheck")        
+        logging.debug("MainWindow->onTimerCheck")
         logging.debug("_hostnameCheck: {0}".format(self._hostnameCheck))
-        
+
         msg = "Scanning: Addresses Pinged = {0}/{1}, ".format(self.addressResultsCount, len(self._addresses))
         msg += "Checking Hostname(s) = {0}".format(len(self._hostnameCheck))
         if self.addressResultsCount == len(self._addresses) and not self._hostnameCheck:
-            self.setStatusBarText("Finished "+msg)
+            self.setStatusBarText("Finished " + msg)
             self.stopScan()
             return
         self.setStatusBarText(msg)
-        
-        rm = [] 
+
+        rm = []
         for address, thread in self._hostnameCheckThreads.items():
-            thread.timeout -= TIMER_CHECK_MS 
+            thread.timeout -= TIMER_CHECK_MS
             if thread.timeout < 0:
                 rm.append(address)
-        
+
         for addr in rm:
             try:
                 self._hostnameCheck[addr].terminate()
             except Exception as e:
                 logging.debug("MainWindow->onTimerCheck: %s" % e)
-                
+
             del self._hostnameCheck[addr]
             del self._hostnameCheckThreads[addr]
-            
-        
+
         if len(self._hostnameCheckThreads.keys()) > MAX_HOSTNAME_CHECKS:
-            return    
+            return
         elif self._hostnameCheck:
             for address, thread in self._hostnameCheck.items():
                 if address in self._hostnameCheckThreads:
                     continue
                 self._hostnameCheckThreads[address] = thread
                 self._hostnameCheckThreads[address].start()
-                return    
-                                
+                return
+
     def parseIpString(self, ip):
         addresses = []
         # range?
@@ -509,8 +508,8 @@ class MainWindow(QMainWindow):
 
             temp = ipStart
             addresses.append(".".join([str(x) for x in temp]))
-            #increment address until it reaches the end ip
-            i = ipStart[3]
+            # increment address until it reaches the end ip
+            ip = ipStart[3]
             while temp != ipEnd:
                 ipStart[3] += 1
                 ip = ".".join([str(x) for x in temp])
@@ -534,7 +533,7 @@ class MainWindow(QMainWindow):
             logging.debug(e)
 
         return addresses
-    
+
     def restoreConfigState(self):
         """Restore application state from config"""
         logging.info("Menubar->Help->restoreConfigState")
@@ -542,58 +541,58 @@ class MainWindow(QMainWindow):
             self.startIp.addItem(item)
         for item in self.config["ipEndHistory"]:
             self.endIp.addItem(item)
-            
+
         if self.config["ipStartHistory"] == []:
             self.startIp.addItem("192.168.0.0")
 
         if self.config["ipEndHistory"] == []:
             self.endIp.addItem("192.168.0.255")
-            
+
         # restore previous values
         for item in self.config["customScanHistory"]:
             self.stringIp.addItem(item)
         if self.config["customScanHistory"] == []:
             self.stringIp.addItem("192.168.0.1-255")
-        try:    
+        try:
             w, h = self.config["size"]
             w, h = int(w), int(h)
             self.resize(w, h)
-        except:
-            pass
-            
+        except Exception as e:
+            logging.debug("restoreConfigState Exception: %s" % e)
+
     def saveConfig(self):
         logging.info("Menubar->Help->saveConfig")
-        
+
         try:
             self.config["scanConfig"]["hostnameTimeout"] = self.spinHostTimeout.value()
             self.config["filter"]["showAliveOnly"] = self.chkShowAlive.checkState()
             self.config["size"] = [self.frameGeometry().width(),
-                                   self.frameGeometry().height()]                                   
+                                   self.frameGeometry().height()]
             for label in ["Hostname", "MAC Address", "Manufacturer"]:
-                self.config["scanConfig"][label] = scanConfig[label].checkState()
+                self.config["scanConfig"][label] = self.scanConfig[label].checkState()
         except Exception as e:
             logging.debug(e)
-        
+
         try:
             with open(self.configPath, "w") as file:
                 json.dump(self.config, file, sort_keys=True, indent=2)
         except PermissionError:
             logging.info("PermissionError: you do not permission to save config")
         logging.debug(self.config)
-        
+
     def setStatusBarText(self, message, timeout=0):
         logging.debug("MainWindow->setStatusBarText")
         self.statusBar().showMessage(message, timeout)
-    
+
     def showAbout(self):
         """Show the About wndow"""
         logging.info("Menubar->Help->showAbout")
         AboutDialog(self)
-        
+
     def startScan(self):
         logging.info("startScan: addresses={0}".format(len(self._addresses)))
         addresses = self._addresses
-        self.scanTotalCount = len(addresses) 
+        self.scanTotalCount = len(addresses)
         for addr in self._addresses:
             self._addressDict[addr] = {"index": self.ipModel.rowCount()}
             self.appendIpEntry({"IP Address": addr})
@@ -605,11 +604,11 @@ class MainWindow(QMainWindow):
             params["Manufacturer"] = 0
         self.pingThread = functions.PingAddress(self, addresses, params)
         self.timerCheck.start(TIMER_CHECK_MS)
-    
+
     def startTimerCheck(self):
         logging.info("MainWindow->startTimerCheck")
         self.timerCheck.start(TIMER_CHECK_MS)
-        
+
     def stopScan(self):
         logging.info("MainWindow->stopScan")
         self.addressResultsCount = 0
@@ -620,7 +619,7 @@ class MainWindow(QMainWindow):
             t.terminate()
         self.cleanScan()
         self.setStatusBarText("Scan Finished: Addresses Checked = {0}".format(self.scanTotalCount))
-        
+
     def updateScanHistory(self):
         """Save scan history to config"""
         logging.info("MainWindow->updateScanHistory")
@@ -637,18 +636,18 @@ class MainWindow(QMainWindow):
             cbox.clear()
             for item in items:
                 cbox.addItem(item)
-            try:
-                items = items[:10]
-            except:
-                pass
+
+            items = items[:10]
             self.config[dictKey] = items
-            
+
         self.saveConfig()
 
-def main():    
+
+def main():
     app = QApplication(sys.argv)
-    gui = MainWindow()
+    MainWindow()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     main()

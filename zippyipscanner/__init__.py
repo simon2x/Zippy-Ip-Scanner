@@ -3,5 +3,7 @@ from __future__ import print_function
 
 try:
     from version import __version__
-except:
+except ImportError:
     from zippyipscanner.version import __version__
+
+__version__ = __version__   # so no unused import warning

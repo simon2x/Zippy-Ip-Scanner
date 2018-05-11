@@ -6,20 +6,23 @@ from codecs import open
 from os import path, system
 from setuptools import setup, find_packages
 import setuptools.command.build_py
-
 from zippyipscanner.version import __version__
 
 def on_windows():
     """Returns True if OS is Windows."""
     return os.name == "nt"
 
-here = path.abspath(path.dirname(__file__))
-with open(path.join(here, 'README.rst'), encoding='utf-8') as readme_file:
-    readme = readme_file.read()
+try:
+    here = path.abspath(path.dirname(__file__))
+    with open(path.join(here, 'README.rst'), encoding='utf-8') as readme_file:
+        readme = readme_file.read()
 
-with open(path.join(here, 'HISTORY.rst'), encoding='utf-8') as history_file:
-    history = history_file.read().replace('.. :changelog:', '')
-
+    with open(path.join(here, 'HISTORY.rst'), encoding='utf-8') as history_file:
+        history = history_file.read().replace('.. :changelog:', '')
+except FileNotFoundError:
+    readme = ""
+    history = ""
+    
 test_requirements = [
     # TODO: put package test requirements here
 ]
@@ -68,7 +71,6 @@ setup(
         'Intended Audience :: End Users/Desktop',
         'Topic :: Internet',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
