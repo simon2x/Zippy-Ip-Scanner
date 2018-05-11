@@ -12,7 +12,7 @@ zippy-ip-scanner
 .. image:: https://img.shields.io/badge/License-GPL%20v3-blue.svg
 
 .. image:: https://travis-ci.org/swprojects/Zippy-Ip-Scanner.svg?branch=master
-        :target: https://travis-ci.org/swprojects/zippy-ip-scanner
+        :target: https://travis-ci.org/swprojects/Zippy-Ip-Scanner
 
 .. image:: https://img.shields.io/pypi/v/zippy-ip-scanner.svg
         :target: https://pypi.python.org/pypi/zippy-ip-scanner
