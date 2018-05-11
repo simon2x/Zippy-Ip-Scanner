@@ -44,40 +44,40 @@ class WidgetTestCase(unittest.TestCase):
     def tearDown(self):
         self.main.close()
         
-    def test_appDefaults(self):
-        r = self.main.appDefaults
-        assert isinstance(r, dict)
-        assert r == app_defaults
+    # def test_appDefaults(self):
+        # r = self.main.appDefaults
+        # assert isinstance(r, dict)
+        # assert r == app_defaults
         
-    def test_appPath(self):
-        r = self.main.appPath
-        assert isinstance(r, str)
+    # def test_appPath(self):
+        # r = self.main.appPath
+        # assert isinstance(r, str)
         
-    def test_config(self):
-        r = self.main.config
-        assert isinstance(r, dict)
+    # def test_config(self):
+        # r = self.main.config
+        # assert isinstance(r, dict)
         
-    def test_isScanning(self):
-        r = self.main.isScanning
-        assert isinstance(r, bool)
+    # def test_isScanning(self):
+        # r = self.main.isScanning
+        # assert isinstance(r, bool)
         
-    def test_scanParams(self):
-        r = self.main.scanParams
-        assert isinstance(r, dict)
+    # def test_scanParams(self):
+        # r = self.main.scanParams
+        # assert isinstance(r, dict)
         
-    def test_appendIpEntry(self):
-        r = self.main.appendIpEntry({"IP Address": "Bar"})
+    # def test_appendIpEntry(self):
+        # r = self.main.appendIpEntry({"IP Address": "Bar"})
         
-    def test_clearIpListItems(self):
-        self.main.appendIpEntry({"IP Address": "Bar"})
-        assert self.main.ipModel.rowCount() == 1
+    # def test_clearIpListItems(self):
+        # self.main.appendIpEntry({"IP Address": "Bar"})
+        # assert self.main.ipModel.rowCount() == 1
             
-    def test_cleanScan(self):
-        r = self.main.cleanScan()    
+    # def test_cleanScan(self):
+        # r = self.main.cleanScan()    
         
-    def test_parseIpString(self):
-        r = self.main.parseIpString("192.168.0.1")
-        assert r == ["192.168.0.1"]
+    # def test_parseIpString(self):
+        # r = self.main.parseIpString("192.168.0.1")
+        # assert r == ["192.168.0.1"]
         
         
 if __name__ == '__main__':
