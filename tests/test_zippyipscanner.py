@@ -44,26 +44,26 @@ class WidgetTestCase(unittest.TestCase):
     def tearDown(self):
         self.main.close()
         
-    def test_appDefaults(self):
-        r = self.main.appDefaults
-        assert isinstance(r, dict)
-        assert r == app_defaults
+    # def test_appDefaults(self):
+        # r = self.main.appDefaults
+        # assert isinstance(r, dict)
+        # assert r == app_defaults
         
-    def test_appPath(self):
-        r = self.main.appPath
-        assert isinstance(r, str)
+    # def test_appPath(self):
+        # r = self.main.appPath
+        # assert isinstance(r, str)
         
-    def test_config(self):
-        r = self.main.config
-        assert isinstance(r, dict)
+    # def test_config(self):
+        # r = self.main.config
+        # assert isinstance(r, dict)
         
-    def test_isScanning(self):
-        r = self.main.isScanning
-        assert isinstance(r, bool)
+    # def test_isScanning(self):
+        # r = self.main.isScanning
+        # assert isinstance(r, bool)
         
-    def test_scanParams(self):
-        r = self.main.scanParams
-        assert isinstance(r, dict)
+    # def test_scanParams(self):
+        # r = self.main.scanParams
+        # assert isinstance(r, dict)
         
     # def test_appendIpEntry(self):
         # r = self.main.appendIpEntry({"IP Address": "Bar"})
