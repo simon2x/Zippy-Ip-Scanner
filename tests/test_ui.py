@@ -12,7 +12,6 @@ import unittest
 PATH = os.path.realpath(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(PATH)))
 
-
 try:
     pass
 except ImportError as error:
@@ -20,21 +19,20 @@ except ImportError as error:
     sys.exit(1)
 
 
-# class TestBaseList(unittest.TestCase):
+class TestList(unittest.TestCase):
+    """Test cases for the BaseList widget."""
 
-    # """Test cases for the BaseList widget."""
+    def setUp(self):
+        pass
 
-    # def setUp(self):
-        # pass
-
-    # def tearDown(self):
-        # pass
+    def tearDown(self):
+        pass
         
-    # def test_add_columns(self):
-        # pass
+    def test_add_columns(self):
+        pass
     
-    # def test_append(self):
-        # self.baseList.InsertColumn(0, "column0")pass
+    def test_append(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
