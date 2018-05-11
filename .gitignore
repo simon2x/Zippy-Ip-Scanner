@@ -3,5 +3,6 @@
 build/*
 dist/*
 .tox/*
+.pytest_cache/*
 zippyipscanner/config.json
 Zippy_Ip_Scanner.egg-info/*
