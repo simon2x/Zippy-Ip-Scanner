@@ -37,9 +37,9 @@ Alternate Installation
 
     *Executables can be found here:*
 
-        Github_ 
+    Github_ 
 
-        Sourceforge_
+    Sourceforge_
 
 
 ======
