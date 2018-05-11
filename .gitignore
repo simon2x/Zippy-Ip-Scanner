@@ -6,3 +6,5 @@ dist/*
 .pytest_cache/*
 zippyipscanner/config.json
 Zippy_Ip_Scanner.egg-info/*
+.coverage
+config.json
