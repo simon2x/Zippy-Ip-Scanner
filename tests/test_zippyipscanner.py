@@ -72,12 +72,12 @@ class WidgetTestCase(unittest.TestCase):
         # self.main.appendIpEntry({"IP Address": "Bar"})
         # assert self.main.ipModel.rowCount() == 1
             
-    def test_cleanScan(self):
-        r = self.main.cleanScan()    
+    # def test_cleanScan(self):
+        # r = self.main.cleanScan()    
         
-    def test_parseIpString(self):
-        r = self.main.parseIpString("192.168.0.1")
-        assert r == ["192.168.0.1"]
+    # def test_parseIpString(self):
+        # r = self.main.parseIpString("192.168.0.1")
+        # assert r == ["192.168.0.1"]
         
         
 if __name__ == '__main__':
