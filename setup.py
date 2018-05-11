@@ -6,7 +6,6 @@ from codecs import open
 from os import path, system
 from setuptools import setup, find_packages
 import setuptools.command.build_py
-
 from zippyipscanner.version import __version__
 
 def on_windows():
@@ -72,7 +71,6 @@ setup(
         'Intended Audience :: End Users/Desktop',
         'Topic :: Internet',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
