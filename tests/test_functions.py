@@ -5,6 +5,7 @@
 
 from __future__ import unicode_literals
 import unittest
+import logging
 import sys
 import os.path
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
@@ -22,7 +23,6 @@ try:
 except ImportError as error:
     print(error)
     sys.exit(1)
-
 
 class TestPingAddress(unittest.TestCase):
     

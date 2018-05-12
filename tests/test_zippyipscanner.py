@@ -4,7 +4,7 @@
 """Contains test cases for the base.py module."""
 
 from __future__ import unicode_literals
-import unittest
+import pytest
 import sys
 import os.path
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
@@ -43,18 +43,15 @@ def test_sys_args():
     for x in SYS_ARGS:
         assert x in zippyipscanner.SYS_ARGS
 
-class TestMainWindow(unittest.TestCase):
 
-    def setUp(self):
-        self.app = QApplication([])
-        self.main = zippyipscanner.MainWindow()
+def test_appDefaults(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
 
-    def tearDown(self):
-        self.main.close()
 
-    def test_initGUI(self):
-        result = self.main.initGUI()
-        assert result is None
+    # def test_initGUI(self):
+        # result = self.main.initGUI()
+        # assert result is None
 
     # def test_appDefaults(self):
         # r = self.main.appDefaults

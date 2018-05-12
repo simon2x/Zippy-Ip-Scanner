@@ -4,7 +4,7 @@
 """Contains test cases for the base.py module."""
 
 from __future__ import unicode_literals
-import unittest
+import pytest
 import sys
 import os.path
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
@@ -23,46 +23,32 @@ except ImportError as error:
     print(error)
     sys.exit(1)
 
+
+def test_key_press_event(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    qtbot.keyPress(dialog, Qt.Key_Return)
     
-class TestAboutDialog(unittest.TestCase):
+def test_homePageLink(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.homePageLink
+    assert isinstance(result, str)
 
-    def setUp(self):
-        self.app = QApplication([])
-        self.about = about.AboutDialog(testing=True)
-                
-    def tearDown(self):
-        self.about.close()
-        
-    def test_key_press_event_fail(self):
-        result = self.about.keyPressEvent("")
-        assert result is None
-        result = self.about.keyPressEvent(Qt.Key_Return)
-        assert result is None
-        
-    def test_key_press_event_success(self):
-        result = self.about.keyPressEvent(Qt.Key_Escape)
-        assert result is True
+def test_macVendorLink(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.macVendorLink
+    assert isinstance(result, str)
 
-    def test_homePageLink(self):
-        result = self.about.homePageLink
-        assert isinstance(result, str)
-        
-    def test_macVendorLink(self):
-        result = self.about.macVendorLink
-        assert isinstance(result, str)
-        
-    def test_macVendorPolicy(self):
-        result = self.about.macVendorPolicy
-        assert isinstance(result, str)
-        
-    def test_githubLink(self):
-        result = self.about.githubLink
-        assert isinstance(result, str)  
+def test_macVendorPolicy(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.macVendorPolicy
+    assert isinstance(result, str)
 
-    def test_initGUI(self):
-        result = self.about.initGUI()
-        assert result is None
-    
-        
-if __name__ == '__main__':
-    unittest.main()
+def test_githubLink(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.githubLink
+    assert isinstance(result, str)
