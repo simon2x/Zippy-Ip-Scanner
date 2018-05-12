@@ -32,7 +32,7 @@ from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
 
 appPath = ""
 if __name__ != "__main__":
-    # this allows us to import relatively if main
+    # this allows us to import relatively
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
     appPath = os.path.dirname(os.path.realpath(__file__)) + "/"
 
@@ -61,7 +61,7 @@ SPLASH_TIMEOUT = 1200
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, testing=False):
+    def __init__(self):
         super(MainWindow, self).__init__()
         logging.debug("MainWindow ")
 
@@ -87,13 +87,11 @@ class MainWindow(QMainWindow):
         self.createMenuBar()
         self.statusBar()
 
-        self.testing = testing
-        if self.testing is False:
-            self.initGUI()
-            self.initTimers()
-            self.restoreConfigState()
-            self.initSplash()
-            self.show()
+        self.initGUI()
+        self.initTimers()
+        self.restoreConfigState()
+        self.initSplash()
+        self.show()
 
     @property
     def appDefaults(self):

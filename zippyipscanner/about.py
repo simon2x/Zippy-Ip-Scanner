@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 """
 
 if __name__ != "__main__":
-    # this allows avoid changing relative imports
+    # this allows us import relatively
     import os
     import sys
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -36,15 +36,13 @@ from PyQt5.QtGui import QIcon
 
 class AboutDialog(QDialog):
 
-    def __init__(self, parent=None, testing=False):
+    def __init__(self, parent=None):
         super(AboutDialog, self).__init__(parent)
         self.setWindowTitle("About Zippy Ip Scanner")
-        self.testing = testing
-        if testing is False:
-            if parent:
-                self.setWindowIcon(QIcon(parent.appPath + "zippyipscanner.ico"))
-            self.initGUI()
-            self.show()
+        if parent:
+            self.setWindowIcon(QIcon(parent.appPath + "zippyipscanner.ico"))
+        self.initGUI()
+        self.show()
 
     @property
     def homePageLink(self):
