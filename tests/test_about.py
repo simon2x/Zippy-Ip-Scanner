@@ -24,18 +24,45 @@ except ImportError as error:
     sys.exit(1)
 
     
-# class WidgetTestCase(unittest.TestCase):
+class TestAboutDialog(unittest.TestCase):
 
-    # def setUp(self):
-        # self.app = QApplication([])
-        # self.about = about.AboutDialog()
+    def setUp(self):
+        self.app = QApplication([])
+        self.about = about.AboutDialog(testing=True)
                 
-    # def tearDown(self):
-        # self.about.close()
+    def tearDown(self):
+        self.about.close()
         
-    # def test_key_press_event(self):
-        # self.about.keyPressEvent("")
+    def test_key_press_event_fail(self):
+        result = self.about.keyPressEvent("")
+        assert result is None
+        result = self.about.keyPressEvent(Qt.Key_Return)
+        assert result is None
         
+    def test_key_press_event_success(self):
+        result = self.about.keyPressEvent(Qt.Key_Escape)
+        assert result is True
 
+    def test_homePageLink(self):
+        result = self.about.homePageLink
+        assert isinstance(result, str)
+        
+    def test_macVendorLink(self):
+        result = self.about.macVendorLink
+        assert isinstance(result, str)
+        
+    def test_macVendorPolicy(self):
+        result = self.about.macVendorPolicy
+        assert isinstance(result, str)
+        
+    def test_githubLink(self):
+        result = self.about.githubLink
+        assert isinstance(result, str)  
+
+    def test_initGUI(self):
+        result = self.about.initGUI()
+        assert result is None
+    
+        
 if __name__ == '__main__':
     unittest.main()
