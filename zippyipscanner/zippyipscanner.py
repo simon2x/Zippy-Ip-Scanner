@@ -357,7 +357,7 @@ class MainWindow(QMainWindow):
             self.stopScan()
             return
         self.isScanning = True
-        self.setStatusBarText("Scanning ...")
+        self.setStatusBar("Scanning ...")
         self.btnScan.setIcon(QIcon(STOP_ICON))
         self.btnCustomScan.setIcon(QIcon(STOP_ICON))
         self.clearIpListItems()
@@ -390,7 +390,7 @@ class MainWindow(QMainWindow):
             self.stopScan()
             return
         self.isScanning = True
-        self.setStatusBarText("Scanning ...")
+        self.setStatusBar("Scanning ...")
         self.btnScan.setIcon(QIcon(STOP_ICON))
         self.btnCustomScan.setIcon(QIcon(STOP_ICON))
         self.clearIpListItems()
@@ -456,10 +456,10 @@ class MainWindow(QMainWindow):
         msg = "Scanning: Addresses Pinged = {0}/{1}, ".format(self.addressResultsCount, len(self._addresses))
         msg += "Checking Hostname(s) = {0}".format(len(self._hostnameCheck))
         if self.addressResultsCount == len(self._addresses) and not self._hostnameCheck:
-            self.setStatusBarText("Finished " + msg)
+            self.setStatusBar("Finished " + msg)
             self.stopScan()
             return
-        self.setStatusBarText(msg)
+        self.setStatusBar(msg)
 
         rm = []
         for address, thread in self._hostnameCheckThreads.items():
@@ -585,8 +585,8 @@ class MainWindow(QMainWindow):
             logging.info("PermissionError: you do not permission to save config")
         logging.debug(self.config)
 
-    def setStatusBarText(self, message, timeout=0):
-        logging.debug("MainWindow->setStatusBarText")
+    def setStatusBar(self, message, timeout=0):
+        logging.debug("MainWindow->setStatusBar")
         self.statusBar().showMessage(message, timeout)
 
     def showAbout(self):
@@ -623,7 +623,7 @@ class MainWindow(QMainWindow):
         for t in self._hostnameCheckThreads.values():
             t.terminate()
         self.cleanScan()
-        self.setStatusBarText("Scan Finished: Addresses Checked = {0}".format(self.scanTotalCount))
+        self.setStatusBar("Scan Finished: Addresses Checked = {0}".format(self.scanTotalCount))
 
     def updateScanHistory(self):
         """Save scan history to config"""

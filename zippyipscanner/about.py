@@ -71,8 +71,6 @@ class AboutDialog(QDialog):
         except AttributeError:
             e = event
         if e == Qt.Key_Escape:
-            if self.testing is True:
-                return True
             self.close()
 
     def initGUI(self):
