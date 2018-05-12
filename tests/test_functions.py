@@ -97,7 +97,7 @@ class TestPingAddress(unittest.TestCase):
         pass
   
 def test_startupInfo():
-    info = functions.startupInfo
+    info = functions.startupInfo()
     if functions.on_windows():
         assert info is not None
     else:
