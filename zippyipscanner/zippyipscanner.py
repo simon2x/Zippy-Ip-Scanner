@@ -222,7 +222,6 @@ class MainWindow(QMainWindow):
         exitAction = QAction("&Exit", self)
         exitAction.setShortcut("Ctrl+Q")
         exitAction.setStatusTip('Exit application...')
-        # exitAction.triggered.connect(QtCore.QCoreApplication.instance().quit)
         exitAction.triggered.connect(self.close)
 
         aboutAction = QAction("&About", self)

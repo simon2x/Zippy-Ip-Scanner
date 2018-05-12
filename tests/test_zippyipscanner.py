@@ -40,53 +40,71 @@ SYS_ARGS = {
 
 
 def test_sys_args():
+    assert zippyipscanner.process_sys_args() == {}
     for x in SYS_ARGS:
         assert x in zippyipscanner.SYS_ARGS
 
+def test_sys_args_dummy():
+    t = ["", "--verbose=2"]
+    zippyipscanner.sys.argv = t
+    result = zippyipscanner.process_sys_args()
+    assert result["--verbose"] == "2"
 
+def test_set_logging_level():
+    zippyipscanner.set_logging_level()
+    del zippyipscanner.SYS_ARGS["--verbose"]
+    zippyipscanner.set_logging_level()
+    
 def test_appDefaults(qtbot):
     window = zippyipscanner.MainWindow()
     qtbot.addWidget(window)
 
+def test_isScanning(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.isScanning
+    assert isinstance(r, bool)
+        
+def test_scanParams(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.scanParams
+    assert isinstance(r, dict)
 
-    # def test_initGUI(self):
-        # result = self.main.initGUI()
-        # assert result is None
 
-    # def test_appDefaults(self):
-        # r = self.main.appDefaults
-        # assert isinstance(r, dict)
-        # assert r == app_defaults
+def test_appPath(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.appPath
+    assert isinstance(r, str)
         
-    # def test_appPath(self):
-        # r = self.main.appPath
-        # assert isinstance(r, str)
+def test_config(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.config
+    assert isinstance(r, dict)
         
-    # def test_config(self):
-        # r = self.main.config
-        # assert isinstance(r, dict)
+def test_appendIpEntry(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.appendIpEntry({"IP Address": "Bar"})
         
-    # def test_isScanning(self):
-        # r = self.main.isScanning
-        # assert isinstance(r, bool)
+def test_clearIpListItems(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.appendIpEntry({"IP Address": "Bar"})
+    assert window.ipModel.rowCount() == 1
         
-    # def test_scanParams(self):
-        # r = self.main.scanParams
-        # assert isinstance(r, dict)
+def test_cleanScan(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.cleanScan()    
         
-    # def test_appendIpEntry(self):
-        # r = self.main.appendIpEntry({"IP Address": "Bar"})
-        
-    # def test_clearIpListItems(self):
-        # self.main.appendIpEntry({"IP Address": "Bar"})
-        # assert self.main.ipModel.rowCount() == 1
-            
-    # def test_cleanScan(self):
-        # r = self.main.cleanScan()    
-        
-    # def test_parseIpString(self):
-        # r = self.main.parseIpString("192.168.0.1")
-        # assert r == ["192.168.0.1"]
+def test_parseIpString(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
+    r = window.parseIpString("192.168.0.1")
+    assert r == ["192.168.0.1"]
         
         
 if __name__ == '__main__':
