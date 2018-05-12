@@ -4,7 +4,7 @@
 """Contains test cases for the base.py module."""
 
 from __future__ import unicode_literals
-import unittest
+import pytest
 import sys
 import os.path
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
@@ -23,19 +23,32 @@ except ImportError as error:
     print(error)
     sys.exit(1)
 
+
+def test_key_press_event(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    qtbot.keyPress(dialog, Qt.Key_Return)
     
-# class WidgetTestCase(unittest.TestCase):
+def test_homePageLink(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.homePageLink
+    assert isinstance(result, str)
 
-    # def setUp(self):
-        # self.app = QApplication([])
-        # self.about = about.AboutDialog()
-                
-    # def tearDown(self):
-        # self.about.close()
-        
-    # def test_key_press_event(self):
-        # self.about.keyPressEvent("")
-        
+def test_macVendorLink(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.macVendorLink
+    assert isinstance(result, str)
 
-if __name__ == '__main__':
-    unittest.main()
+def test_macVendorPolicy(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.macVendorPolicy
+    assert isinstance(result, str)
+
+def test_githubLink(qtbot):
+    dialog = about.AboutDialog()
+    qtbot.addWidget(dialog)
+    result = dialog.githubLink
+    assert isinstance(result, str)

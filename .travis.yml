@@ -1,9 +1,10 @@
 language: python
-sudo: false
+sudo: true
 python:
   - "3.5"
   - "3.6"
 install:
+  - sudo apt-get install libglu1-mesa # pyqt requires .so files
   - pip install tox-travis
   - pip install coveralls
   - pip install flake8

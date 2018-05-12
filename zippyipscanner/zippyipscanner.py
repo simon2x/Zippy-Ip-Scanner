@@ -20,18 +20,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 
 import os
 import sys
-
-appPath = ""
-if __name__ != "__main__":
-    # this allows avoid changing relative imports
-    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-    appPath = os.path.dirname(os.path.realpath(__file__)) + "/"
-
-import functions
 import json
 import logging
 from functools import partial
-
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
                              QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
@@ -39,12 +30,27 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
                              QTreeView, QAction)
 from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
 
+appPath = ""
+if __name__ != "__main__":
+    # this allows us to import relatively if main
+    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+    appPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+
+import functions
 from about import AboutDialog
 from version import __version__
 
-# Logging Configuration
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+SYS_ARGS = {
+    "--verbose": 0,
+}
+# verbosity
+LOG_LEVELS = {
+    "1": 20,  # Info
+    "2": 10,  # Debug
+    "3": 30,  # Warning
+    "4": 40,  # Error
+    "5": 50,  # Critical
+}
 
 STOP_ICON = appPath + "images/stop.png"
 START_ICON = appPath + "images/start.png"
@@ -55,7 +61,7 @@ SPLASH_TIMEOUT = 1200
 
 class MainWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, testing=False):
         super(MainWindow, self).__init__()
         logging.debug("MainWindow ")
 
@@ -80,12 +86,14 @@ class MainWindow(QMainWindow):
         self.loadConfig()
         self.createMenuBar()
         self.statusBar()
-        self.initGUI()
-        self.initTimers()
-        self.restoreConfigState()
 
-        self.initSplash()
-        self.show()
+        self.testing = testing
+        if self.testing is False:
+            self.initGUI()
+            self.initTimers()
+            self.restoreConfigState()
+            self.initSplash()
+            self.show()
 
     @property
     def appDefaults(self):
@@ -643,7 +651,28 @@ class MainWindow(QMainWindow):
         self.saveConfig()
 
 
+def process_sys_args():
+    res = {}
+    for arg in sys.argv[1:]:
+        if "=" not in arg:
+            continue
+        key, value = arg.split("=")[:2]
+        res[key.lower()] = value.lower()
+    return res
+
+
+def set_logging_level():
+    # Logging Configuration
+    try:
+        v = LOG_LEVELS[SYS_ARGS["--verbose"]]
+        logging.basicConfig(level=v)
+    except KeyError:
+        pass
+
+
 def main():
+    SYS_ARGS.update(process_sys_args())
+    set_logging_level()
     app = QApplication(sys.argv)
     MainWindow()
     sys.exit(app.exec_())
