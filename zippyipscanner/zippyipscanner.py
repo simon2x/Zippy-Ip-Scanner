@@ -153,14 +153,12 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(dict)
     def slotHostnameResult(self, result):
-        """Receive a single hostname scan result
+        """
+        Receive a single hostname scan result
 
-        Args:
-            result: dict of hostname scan result
-        Returns:
-            None
-        Raises:
-            KeyError:
+        :param dict result: the result of a hostname scan
+        :returns: None
+        :raises KeyError: raises an exception
 
         """
         logging.debug("MainWindow->slotHostnameResult %s" % str(result))
@@ -179,14 +177,12 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(dict)
     def slotScanIp(self, data):
-        """Append new scan entry to ip list and add to pingThread
+        """
+        Append new scan entry to ip list and add to pingThread
 
-        Args:
-            data: dict of ip scan
-        Returns:
-            None
-        Raises:
-            Error:
+        :param dict data: contains IP address
+        :returns: None
+        :raises Exception: raises an exception
 
         """
         self.ipModel.insertRow(self.ipModel.rowCount())
@@ -202,14 +198,12 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(dict)
     def slotScanResult(self, result):
-        """Receive and handle scan result
+        """
+        Receive and handle scan result
 
-        Args:
-            result: dict of ip scan result
-        Returns:
-            None
-        Raises:
-            Error: if ipModel fails to setData
+        :param dict result: dict of ip scan result
+        :returns: None
+        :raises Error: if ipModel fails to setData
 
         """
         logging.debug(result)
@@ -236,14 +230,7 @@ class MainWindow(QMainWindow):
 
     @property
     def scanParams(self):
-        """Returns current user selected scan parameters
-
-        Args:
-            None
-        Returns:
-            dict of scan parameters
-
-        """
+        """Returns current user selected scan parameters"""
         params = {}
         for label, chkBox in self.scanConfig.items():
             params[label] = chkBox.checkState()
