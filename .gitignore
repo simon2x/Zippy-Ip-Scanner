@@ -11,7 +11,7 @@ config.json
 
 /docs/html
 /docs/*.txt
-/docs/*.rst
+#/docs/*.rst
 /docs/*.pkl
 /docs/*.inc
 /docs/*.lst
