@@ -23,6 +23,8 @@ import sys
 import json
 import logging
 from functools import partial
+
+from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSignal, pyqtSlot)
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
                              QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
@@ -32,7 +34,7 @@ from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
 
 appPath = ""
 if __name__ != "__main__":
-    # this allows us to import relatively if main
+    # this allows us to import relatively
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
     appPath = os.path.dirname(os.path.realpath(__file__)) + "/"
 
@@ -61,13 +63,15 @@ SPLASH_TIMEOUT = 1200
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, testing=False):
+    signalAddPing = pyqtSignal(dict)
+    signalScanParams = pyqtSignal(dict)
+    signalStopScanning = pyqtSignal()
+
+    def __init__(self):
         super(MainWindow, self).__init__()
-        logging.debug("MainWindow ")
 
         self._isScanning = False
         self._bitmaps = {}
-        # self.SetupBitmaps()
         self._sortBy = 0
         self._addressResults = []
         self.addressResultsCount = 0
@@ -75,7 +79,11 @@ class MainWindow(QMainWindow):
         self._hostnameCheck = {}
         self._hostnameCheckThreads = {}
         self.scanTotalCount = 0
-        self.pingThread = None
+        self.pingThread = functions.PingAddress(self)
+        self.signalAddPing.connect(self.pingThread.slotAddPing)
+        self.signalScanParams.connect(self.pingThread.slotScanParams)
+        self.signalStopScanning.connect(self.pingThread.slotStopScanning)
+        self.parseIpthread = None
         self.ipHeaders = ["IP Address", "Hostname", "Ping", "TTL", "Manufacturer", "MAC Address"]
         self.currentIpList = None
 
@@ -87,13 +95,11 @@ class MainWindow(QMainWindow):
         self.createMenuBar()
         self.statusBar()
 
-        self.testing = testing
-        if self.testing is False:
-            self.initGUI()
-            self.initTimers()
-            self.restoreConfigState()
-            self.initSplash()
-            self.show()
+        self.initGUI()
+        self.initTimers()
+        self.restoreConfigState()
+        self.initSplash()
+        self.show()
 
     @property
     def appDefaults(self):
@@ -137,19 +143,30 @@ class MainWindow(QMainWindow):
         self._isScanning = value
 
     @pyqtSlot(str)
-    def lookupTimedOut(self, address):
-        logging.info(address)
-        del self._hostnameCheck[address]
-
-    @pyqtSlot(str)
-    def receiveDebugSignal(self, str):
+    def slotDebug(self, str):
         logging.debug(str)
 
-    @pyqtSlot(dict)
-    def receiveHostnameResult(self, result):
-        logging.debug(result)
+    @pyqtSlot(str)
+    def slotLookupTimeout(self, address):
+        logging.info(address)
+        del self._hostnameCheck[address]
+        self.addressResultsCount += 1
 
-        if not self.isScanning:
+    @pyqtSlot(dict)
+    def slotHostnameResult(self, result):
+        """Receive a single hostname scan result
+
+        Args:
+            result: dict of hostname scan result
+        Returns:
+            None
+        Raises:
+            KeyError:
+
+        """
+        logging.debug("MainWindow->slotHostnameResult %s" % str(result))
+
+        if self.isScanning is False:
             return
 
         try:
@@ -157,23 +174,61 @@ class MainWindow(QMainWindow):
             self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index("Hostname")), result["hostname"])
             del self._hostnameCheck[result["address"]]
             del self._hostnameCheckThreads[result["address"]]
+            self.addressResultsCount += 1
         except KeyError:
             logging.debug(KeyError)
 
     @pyqtSlot(dict)
-    def receiveScanResult(self, result):
+    def slotScanIp(self, data):
+        """Append new scan entry to ip list and add to pingThread
+
+        Args:
+            data: dict of ip scan
+        Returns:
+            None
+        Raises:
+            Error:
+
+        """
+        self.ipModel.insertRow(self.ipModel.rowCount())
+        for col, header in enumerate(self.ipHeaders):
+            try:
+                index = self.ipModel.rowCount() - 1
+                self.ipModel.setData(self.ipModel.index(index, col), data[header])
+                address = data["IP Address"]
+                self._addressDict[address] = {"index": index}
+                self.startScan(index, address)
+            except Exception as e:
+                logging.debug("MainWindow->slotScanIp: %s" % e)
+
+    @pyqtSlot(dict)
+    def slotScanResult(self, result):
+        """Receive and handle scan result
+
+        Args:
+            result: dict of ip scan result
+        Returns:
+            None
+        Raises:
+            Error: if ipModel fails to setData
+
+        """
         logging.debug(result)
-
-        if not self.isScanning:
+        if self.isScanning is False:
             return
-
-        index = self._addressDict[result["IP Address"]]["index"]
+        try:
+            index = self._addressDict[result["IP Address"]]["index"]
+        except KeyError:
+            # Sometimes we receive a result even after stopping
+            self.stopScan()
+            return
         if self.scanConfig["Hostname"].checkState() == 2 and result["Ping"]:
             timeout = self.spinHostTimeout.value()
             if timeout == -1:
                 timeout = 5
             self._hostnameCheck[result["IP Address"]] = functions.LookupHostname(self, result["IP Address"], timeout)
-        self.addressResultsCount += 1
+        else:
+            self.addressResultsCount += 1
         for k, v in result.items():
             try:
                 self.ipModel.setData(self.ipModel.index(index, self.ipHeaders.index(k)), v)
@@ -182,26 +237,19 @@ class MainWindow(QMainWindow):
 
     @property
     def scanParams(self):
+        """Returns current user selected scan parameters
+
+        Args:
+            None
+        Returns:
+            dict of scan parameters
+
+        """
         params = {}
         for label, chkBox in self.scanConfig.items():
             params[label] = chkBox.checkState()
         del params["Hostname"]
         return params
-
-    def appendIpEntry(self, data):
-        self.ipModel.insertRow(self.ipModel.rowCount())
-        for col, header in enumerate(self.ipHeaders):
-            try:
-                self.ipModel.setData(self.ipModel.index(self.ipModel.rowCount() - 1, col), data[header])
-            except Exception as e:
-                logging.debug("appendIpEntry: %s" % e)
-
-    def closeEvent(self, event):
-        self.stopScan()
-        self.saveConfig()
-        if self.splash:
-            self.splash.close()
-        event.accept()
 
     def clearIpListItems(self):
         self.ipModel.removeRows(0, self.ipModel.rowCount())
@@ -212,17 +260,19 @@ class MainWindow(QMainWindow):
         self._addresses = {}
         self._hostnameCheck = {}
         self._hostnameCheckThreads = {}
-        self.pingThread = None
+        self.setScanIcons(start=True)
 
-        self.btnScan.setIcon(QIcon(START_ICON))
-        self.btnCustomScan.setIcon(QIcon(START_ICON))
-        self.isScanning = False
+    def closeEvent(self, event):
+        self.stopScan()
+        self.saveConfig()
+        if self.splash:
+            self.splash.close()
+        event.accept()
 
     def createMenuBar(self):
         exitAction = QAction("&Exit", self)
         exitAction.setShortcut("Ctrl+Q")
         exitAction.setStatusTip('Exit application...')
-        # exitAction.triggered.connect(QtCore.QCoreApplication.instance().quit)
         exitAction.triggered.connect(self.close)
 
         aboutAction = QAction("&About", self)
@@ -286,7 +336,7 @@ class MainWindow(QMainWindow):
         self.btnCustomScan = QToolButton(self)
         self.btnCustomScan.setIcon(QIcon(START_ICON))
         self.btnCustomScan.setIconSize(QSize(48, 32))
-        self.btnCustomScan.clicked.connect(self.onCustomScan)
+        self.btnCustomScan.clicked.connect(self.onScanCustom)
         gboxCustomScanLayout.addWidget(self.btnCustomScan)
 
         # scan configuration
@@ -333,7 +383,6 @@ class MainWindow(QMainWindow):
     def initSplash(self):
         self.splash = QSplashScreen(QPixmap(appPath + "splash.png"), Qt.WindowStaysOnTopHint)
         self.splash.show()
-
         QTimer.singleShot(SPLASH_TIMEOUT, lambda: self.splash.close())
 
     def initTimers(self):
@@ -342,7 +391,7 @@ class MainWindow(QMainWindow):
         self.timerCheck.timeout.connect(self.onTimerCheck)
 
     def loadConfig(self):
-        """ try to load settings or create/overwrite config file"""
+        """Try to load settings or create/overwrite config file"""
         logging.info("MainWindow->loadConfig")
         try:
             with open(self.configPath, "r") as file:
@@ -353,36 +402,6 @@ class MainWindow(QMainWindow):
             logging.info("Could Not Load Settings File:", e)
             self.saveConfig()
 
-    def onCustomScan(self):
-        logging.info("MainWindow->onCustomScan")
-
-        if self.isScanning is True:
-            self.stopScan()
-            return
-        self.isScanning = True
-        self.setStatusBarText("Scanning ...")
-        self.btnScan.setIcon(QIcon(STOP_ICON))
-        self.btnCustomScan.setIcon(QIcon(STOP_ICON))
-        self.clearIpListItems()
-
-        stringIp = self.stringIp.currentText()
-        if not stringIp:
-            self.stopScan()
-            return
-
-        self.updateScanHistory()
-        addresses = []
-        stringIp = stringIp.split(",")
-        for ip in stringIp:
-            res = self.parseIpString(ip)
-            for add in res:
-                if add in addresses:
-                    continue
-                addresses.append(add)
-
-        self._addresses = addresses
-        self.startScan()
-
     def onFilterCheckBox(self, state):
         self.saveConfig()
 
@@ -392,55 +411,18 @@ class MainWindow(QMainWindow):
         if self.isScanning is True:
             self.stopScan()
             return
-        self.isScanning = True
-        self.setStatusBarText("Scanning ...")
-        self.btnScan.setIcon(QIcon(STOP_ICON))
-        self.btnCustomScan.setIcon(QIcon(STOP_ICON))
-        self.clearIpListItems()
+        self.prepareScan()
 
-        startIp = self.startIp.currentText()
-        endIp = self.endIp.currentText()
-        if not startIp and not endIp:
-            logging.info("No valid IP range defined")
+        start = self.startIp.currentText()
+        end = self.endIp.currentText()
+        if not start or not end:
+            logging.info("Invalid IP range defined. Start and/or end range empty.")
             self.stopScan()
             return
-        if not endIp:
-            pass
-
         self.updateScanHistory()
 
-        start = [int(x) for x in startIp.split(".")]
-        end = [int(x) for x in endIp.split(".")]
-        if start[0:2] != end[0:2]:
-            self.stopScan()
-            return
-
-        # is end IP before start IP?
-        for i in range(4):
-            if start[i] > end[i]:
-                start, end = end, start
-                break
-
-        logging.info("Populate IP range list from %s - %s" % (start, end))
-        temp = start
-        addresses = []
-        addresses.append(startIp)
-
-        # increment address until it reaches the end ip
-        logging.debug("{0}, {1}".format(temp, end))
-        while temp != end:
-            start[3] += 1
-            ip = ".".join([str(x) for x in temp])
-            addresses.append(ip)
-
-            if temp == end:
-                break
-            if temp[3] >= 256:
-                temp[3] = 0
-                temp[2] += 1
-
-        self._addresses = addresses
-        self.startScan()
+        ipRange = start + "-" + end
+        self.parseIpthread = functions.ParseIpRange(self, ipRange)
 
     def onScanCheckBox(self, label):
         logging.info("MainWindow->onScanCheckBox %s" % label)
@@ -451,18 +433,35 @@ class MainWindow(QMainWindow):
         elif label == "Manufacturer" and value is 2:
             self.scanConfig["MAC Address"].setCheckState(0)
 
+    def onScanCustom(self):
+        logging.info("MainWindow->onScanCustom")
+        if self.isScanning is True:
+            self.stopScan()
+            return
+        self.prepareScan()
+
+        stringIp = self.stringIp.currentText()
+        if not stringIp:
+            self.stopScan()
+            return
+
+        self.updateScanHistory()
+        stringIp = stringIp.split(",")
+        for ipRange in stringIp:
+            self.parseIpthread = functions.ParseIpRange(self, ipRange)
+
     def onTimerCheck(self):
         """Check if we have received any scan results"""
         logging.debug("MainWindow->onTimerCheck")
         logging.debug("_hostnameCheck: {0}".format(self._hostnameCheck))
 
-        msg = "Scanning: Addresses Pinged = {0}/{1}, ".format(self.addressResultsCount, len(self._addresses))
+        msg = "Scanning: Addresses Pinged = {0}/{1}, ".format(self.addressResultsCount, self.ipModel.rowCount())
         msg += "Checking Hostname(s) = {0}".format(len(self._hostnameCheck))
-        if self.addressResultsCount == len(self._addresses) and not self._hostnameCheck:
-            self.setStatusBarText("Finished " + msg)
+        if self.addressResultsCount == self.ipModel.rowCount() and not self._hostnameCheck:
+            self.setStatusBar("Finished " + msg)
             self.stopScan()
             return
-        self.setStatusBarText(msg)
+        self.setStatusBar(msg)
 
         rm = []
         for address, thread in self._hostnameCheckThreads.items():
@@ -489,66 +488,27 @@ class MainWindow(QMainWindow):
                 self._hostnameCheckThreads[address].start()
                 return
 
-    def parseIpString(self, ip):
-        addresses = []
-        # range?
-        try:
-            ipStart, ipEnd = ip.split("-")
-            ipBase = ipStart.split(".")[:-1]
-            ipEnd = ".".join(ipBase) + "." + ipEnd
-            ipStart = [int(x) for x in ipStart.split(".")]
-            if len(ipStart) != 4:
-                return []
-            ipEnd = [int(x) for x in ipEnd.split(".")]
-
-            if ipStart[3] > 256:
-                ipStart[3] == 256
-            if ipEnd[3] > 256:
-                ipEnd[3] == 256
-
-            # is end IP before start IP?
-            if ipStart[3] > ipEnd[3]:
-                ipStart, ipEnd = ipEnd, ipStart
-            elif ipStart[3] == ipEnd[3]:
-                return [".".join([str(x) for x in ipStart])]
-
-            logging.info("Populate IP range list from %s - %s" % (ipStart, ipEnd))
-
-            temp = ipStart
-            addresses.append(".".join([str(x) for x in temp]))
-            # increment address until it reaches the end ip
-            ip = ipStart[3]
-            while temp != ipEnd:
-                ipStart[3] += 1
-                ip = ".".join([str(x) for x in temp])
-                addresses.append(ip)
-            return addresses
-
-        except Exception as e:
-            logging.debug(e)
-
-        # single ip?
-        try:
-            ipAdd = [int(x) for x in ip.split(".")]
-            if len(ipAdd) != 4:
-                return []
-            if ipAdd[3] > 256:
-                return []
-            addresses.append(ip)
-            return addresses
-
-        except Exception as e:
-            logging.debug(e)
-
-        return addresses
+    def prepareScan(self):
+        self.isScanning = True
+        self.setStatusBar("Scanning ...")
+        self.setScanIcons(start=False)
+        self.clearIpListItems()
 
     def restoreConfigState(self):
         """Restore application state from config"""
         logging.info("Menubar->Help->restoreConfigState")
-        for item in self.config["ipStartHistory"]:
-            self.startIp.addItem(item)
-        for item in self.config["ipEndHistory"]:
-            self.endIp.addItem(item)
+        self.restoreScanHistory()
+
+        try:
+            w, h = self.config["size"]
+            w, h = int(w), int(h)
+            self.resize(w, h)
+        except Exception as e:
+            logging.debug("restoreConfigState Exception: %s" % e)
+
+    def restoreScanHistory(self):
+        self.startIp.addItems(self.config["ipStartHistory"])
+        self.endIp.addItems(self.config["ipEndHistory"])
 
         if self.config["ipStartHistory"] == []:
             self.startIp.addItem("192.168.0.0")
@@ -556,17 +516,9 @@ class MainWindow(QMainWindow):
         if self.config["ipEndHistory"] == []:
             self.endIp.addItem("192.168.0.255")
 
-        # restore previous values
-        for item in self.config["customScanHistory"]:
-            self.stringIp.addItem(item)
+        self.stringIp.addItems(self.config["customScanHistory"])
         if self.config["customScanHistory"] == []:
             self.stringIp.addItem("192.168.0.1-255")
-        try:
-            w, h = self.config["size"]
-            w, h = int(w), int(h)
-            self.resize(w, h)
-        except Exception as e:
-            logging.debug("restoreConfigState Exception: %s" % e)
 
     def saveConfig(self):
         logging.info("Menubar->Help->saveConfig")
@@ -588,8 +540,16 @@ class MainWindow(QMainWindow):
             logging.info("PermissionError: you do not permission to save config")
         logging.debug(self.config)
 
-    def setStatusBarText(self, message, timeout=0):
-        logging.debug("MainWindow->setStatusBarText")
+    def setScanIcons(self, start=True):
+        if start:
+            icon = START_ICON
+        else:
+            icon = STOP_ICON
+        self.btnScan.setIcon(QIcon(icon))
+        self.btnCustomScan.setIcon(QIcon(icon))
+
+    def setStatusBar(self, message, timeout=0):
+        logging.debug("MainWindow->setStatusBar")
         self.statusBar().showMessage(message, timeout)
 
     def showAbout(self):
@@ -597,36 +557,47 @@ class MainWindow(QMainWindow):
         logging.info("Menubar->Help->showAbout")
         AboutDialog(self)
 
-    def startScan(self):
-        logging.info("startScan: addresses={0}".format(len(self._addresses)))
-        addresses = self._addresses
-        self.scanTotalCount = len(addresses)
-        for addr in self._addresses:
-            self._addressDict[addr] = {"index": self.ipModel.rowCount()}
-            self.appendIpEntry({"IP Address": addr})
-
-        logging.info("startScan: scanParams={0}".format(self.scanParams))
+    def sendScanParams(self):
         # we cannot get Manufacturer if user disables MAC
         params = self.scanParams
         if params["MAC Address"] == 0:
             params["Manufacturer"] = 0
-        self.pingThread = functions.PingAddress(self, addresses, params)
-        self.timerCheck.start(TIMER_CHECK_MS)
+        self.signalScanParams.emit(params)
+
+    def startScan(self, index, address):
+        self.sendScanParams()
+        self.signalAddPing.emit({"index": index, "address": address})
+        self.startTimerCheck()
 
     def startTimerCheck(self):
         logging.info("MainWindow->startTimerCheck")
         self.timerCheck.start(TIMER_CHECK_MS)
 
-    def stopScan(self):
-        logging.info("MainWindow->stopScan")
-        self.addressResultsCount = 0
-        self.timerCheck.stop()
-        if self.pingThread:
-            self.pingThread.terminate()
+    def stopHostnameChecks(self):
         for t in self._hostnameCheckThreads.values():
             t.terminate()
+
+    def stopParseIpThread(self):
+        if self.parseIpthread:
+            self.parseIpthread.terminate()
+            self.parseIpthread = None
+
+    def stopPingThread(self):
+        self.signalStopScanning.emit()
+
+    def stopTimerCheck(self):
+        self.timerCheck.stop()
+
+    def stopScan(self):
+        logging.info("MainWindow->stopScan")
+        self.setStatusBar("Scan Finished: Addresses Checked = {0}".format(self.addressResultsCount))
+        self.isScanning = False
+        self.addressResultsCount = 0
+        self.stopTimerCheck()
+        self.stopPingThread()
+        self.stopParseIpThread()
+        self.stopHostnameChecks()
         self.cleanScan()
-        self.setStatusBarText("Scan Finished: Addresses Checked = {0}".format(self.scanTotalCount))
 
     def updateScanHistory(self):
         """Save scan history to config"""

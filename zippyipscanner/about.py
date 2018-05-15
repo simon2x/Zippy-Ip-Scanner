@@ -19,7 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>
 """
 
 if __name__ != "__main__":
-    # this allows avoid changing relative imports
+    # this allows us import relatively
     import os
     import sys
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -66,6 +66,26 @@ class AboutDialog(QDialog):
     def githubLink(self):
         return "https://github.com/swprojects/Zippy-Ip-Scanner"
 
+    @property
+    def homePageLink(self):
+        return "www.sanawu.com"
+
+    @property
+    def macVendorLink(self):
+        return "http://macvendors.co/kb/privacy-policy"
+
+    @property
+    def macVendorPolicy(self):
+        p = ("Zippy Ip Scanner retrieves the MAC vendor name via MacVendors.co API and \n"
+             + "therefore MAC vendor name retrieval is subject to <a href={0}>MacVendors.co"
+             + " privacy policy</a>.\n".format(self.macVendorLink)
+             + "Uncheck Manufacturer checkbox to disable this feature.")
+        return p
+
+    @property
+    def githubLink(self):
+        return "https://github.com/swprojects/Zippy-Ip-Scanner"
+
     def keyPressEvent(self, event):
         logging.info("AboutDialog->keyPressEvent")
         try:
@@ -73,8 +93,6 @@ class AboutDialog(QDialog):
         except AttributeError:
             e = event
         if e == Qt.Key_Escape:
-            if self.testing is True:
-                return True
             self.close()
 
     def initGUI(self):

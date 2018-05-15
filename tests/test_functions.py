@@ -28,7 +28,7 @@ class TestPingAddress(unittest.TestCase):
     
     def setUp(self):
         self.scanParams = {"MAC Address": 2, "Manufacturer": 2}
-        self.thread = functions.PingAddress(None, [], self.scanParams, start=False)
+        self.thread = functions.PingAddress(parent=None, scanParams=self.scanParams)
         
     def tearDown(self):
         pass
@@ -86,8 +86,8 @@ class TestPingAddress(unittest.TestCase):
         result = self.thread.pingCommand(address)
         assert result[-1] == address
         
-    def test_returnResult(self):
-        result = self.thread.returnResult({})
+    def test_emitResult(self):
+        result = self.thread.emitResult({})
         assert result is None
       
     def test_runCommand(self):
@@ -96,8 +96,8 @@ class TestPingAddress(unittest.TestCase):
     def test_run(self):
         pass
   
-def test_startupInfo():
-    info = functions.startupInfo()
+def test_startup_info():
+    info = functions.startup_info()
     if functions.on_windows():
         assert info is not None
     else:
@@ -113,6 +113,19 @@ def test_lookup_mac_address():
 def test_lookup_manufacturer():
     r = functions.LookupManufacturers("192.168.0.1")
     assert isinstance(r, str)
+
+# def test_parseIpString(qtbot):
+    # window = functions.MainWindow()
+    # qtbot.addWidget(window)
+    # r = window.parseIpString("192.168.0.1")
+    # assert r == ["192.168.0.1"]
+    
+# def test_parseIpRange(qtbot):
+    # window = zippyipscanner.MainWindow()
+    # qtbot.addWidget(window)
+    # r = window.parseIpRange("192.168.4.0-192.168.4.255")
+    # #assert r != []
+    # assert len(r) == 256
 
 if __name__ == '__main__':
     unittest.main()

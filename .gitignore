@@ -8,3 +8,14 @@ zippyipscanner/config.json
 Zippy_Ip_Scanner.egg-info/*
 .coverage
 config.json
+
+/docs/html
+/docs/*.txt
+/docs/*.rst
+/docs/*.pkl
+/docs/*.inc
+/docs/*.lst
+/docs/_static/images/inheritance/*_inheritance.*
+/docs/_templates/gallery.html
+/docs/build
+/docs/_build

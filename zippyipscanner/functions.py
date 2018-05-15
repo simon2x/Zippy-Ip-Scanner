@@ -16,6 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>
 """
 
+import time
+import mathfunctions as mf
 import logging
 import json
 import os
@@ -24,7 +26,111 @@ import urllib.request
 import socket
 import subprocess
 from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
+
+
+def on_windows():
+    return os.name == "nt"
+
+
+def startup_info():
+    """Configure subprocess to hide the console window"""
+    if on_windows():
+        info = subprocess.STARTUPINFO()
+        info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        info.wShowWindow = subprocess.SW_HIDE
+        return info
+    return None
+
+
+def valid_ip4(address):
+    """
+    Is a valid 4-byte address? If not, try to return the
+    next best valid address
+
+    Some leniency allowed on the first byte (8 LSB's). Every
+    other byte must be 0 - 255.
+    """
+    logging.debug("functions->valid_ip4 (address=%s)" % address)
+    if not isinstance(address, list):
+        return False
+    if len(address) == 3:
+        address.append(0)
+    elif len(address) != 4:
+        return False
+    result = [0, 0, 0, 0]
+    try:
+        for n, x in enumerate(address):
+            if x > 255 and n == 3:
+                result[n] = 255
+            elif x > 255 or x < 0:
+                return False
+            else:
+                result[n] = x
+    except ValueError:
+        return False
+    return result
+
+
+class ParseIpRange(QtCore.QThread):
+
+    signalScanIp = pyqtSignal(dict)
+
+    def __init__(self, parent, spec):
+        super(ParseIpRange, self).__init__()
+
+        self.parent = parent
+        self.spec = spec
+        self.signalScanIp.connect(self.parent.slotScanIp)
+        self.start()
+
+    def run(self):
+        self.parseIpRange(self.spec)
+
+    def parseIpRange(self, spec):
+        """Is spec string a range a IP addresses?"""
+        logging.debug("functions->parseIpRange")
+        addresses = []
+        try:
+            ipStart, ipEnd = spec.split("-")[:2]
+
+            # Check start IP
+            ipStart = [int(x) for x in ipStart.split(".")]
+            start = valid_ip4(ipStart)
+            if start is False:
+                return
+
+            # Check end IP
+            ipEnd = [int(x) for x in ipEnd.split(".")]
+            if len(ipEnd) == 1:
+                ipEnd = start[:3] + ipEnd
+            end = valid_ip4(ipEnd)
+            if end is False:
+                return
+
+            if start == end:
+                ip = ".".join([str(x) for x in start])
+                self.signalScanIp.emit({"IP Address": ip})
+                return addresses
+
+            startDec = mf.byte_list_to_decimal(start)
+            endDec = mf.byte_list_to_decimal(end) + 1
+            if endDec < startDec:
+                startDec, endDec = endDec, startDec
+            logging.debug("functions->parseIpRange addresses=%s" % str((startDec, endDec)))
+
+            for _ in range(startDec, endDec):
+                temp = mf.decimal_to_byte_list(startDec, retbytes=4)
+                ip = ".".join([str(x) for x in temp])
+                self.signalScanIp.emit({"IP Address": ip})
+                startDec += 1
+                time.sleep(0.05)
+
+            logging.debug("functions->parseIpRange addresses=%s" % addresses)
+
+        except Exception as e:
+            logging.debug("functions->parseIpRange: %s" % e)
+            return
 
 
 def on_windows():
@@ -43,7 +149,7 @@ def startupInfo():
 
 class LookupHostname(QtCore.QThread):
 
-    signal = pyqtSignal(dict)
+    signalHostnameResult = pyqtSignal(dict)
 
     def __init__(self, parent, address, timeout):
         super(LookupHostname, self).__init__()
@@ -53,7 +159,7 @@ class LookupHostname(QtCore.QThread):
         self.address = address
 
         if self.parent:
-            self.signal.connect(self.parent.receiveHostnameResult)
+            self.signalHostnameResult.connect(self.parent.slotHostnameResult)
 
     def run(self):
         hostname = "n/a"
@@ -64,7 +170,7 @@ class LookupHostname(QtCore.QThread):
         result = {"address": self.address, "hostname": hostname}
         if not self.parent:
             return result
-        self.signal.emit(result)
+        self.signalHostnameResult.emit(result)
 
 
 def LookupMacAddress(address):
@@ -79,7 +185,7 @@ def LookupMacAddress(address):
     else:
         arp_cmd = ['arp', '-n']
 
-    info = startupInfo()
+    info = startup_info()
     pid = subprocess.Popen(arp_cmd + [address],
                            stdin=subprocess.PIPE,
                            stderr=subprocess.PIPE,
@@ -121,20 +227,33 @@ def LookupManufacturers(mac):
 
 class PingAddress(QtCore.QThread):
 
-    signal = pyqtSignal(dict)
-    debugSignal = pyqtSignal(str)
+    signalScanResult = pyqtSignal(dict)
+    signalDebug = pyqtSignal(str)
 
-    def __init__(self, parent, addresses, scanParams, start=True):
+    def __init__(self, parent, scanParams={}):
         super(PingAddress, self).__init__()
 
         self.parent = parent
-        self.addresses = addresses
+        self.addresses = []
         self.scanParams = scanParams
         if self.parent:
-            self.signal.connect(self.parent.receiveScanResult)
-            self.debugSignal.connect(self.parent.receiveDebugSignal)
-        if start is True:
+            self.signalScanResult.connect(self.parent.slotScanResult)
+            self.signalDebug.connect(self.parent.slotDebug)
             self.start()
+
+    @pyqtSlot(dict)
+    def slotAddPing(self, item):
+        index = item["index"]
+        address = item["address"]
+        self.addresses.append((index, address))
+
+    @pyqtSlot(dict)
+    def slotScanParams(self, params):
+        self.scanParams = params
+
+    @pyqtSlot()
+    def slotStopScanning(self):
+        self.addresses = []
 
     @property
     def checkMac(self):
@@ -173,7 +292,7 @@ class PingAddress(QtCore.QThread):
 
     def outputResult(self, output):
         """Return result of output"""
-        self.debugSignal.emit(output)
+        self.signalDebug.emit(output)
         result = {}
         if self.gotResponse(output):
             result["TTL"] = self.extractTTL(output)
@@ -187,19 +306,29 @@ class PingAddress(QtCore.QThread):
             cmd = ['ping', '-c', '1', '-w', '1', address]
         return cmd
 
-    def returnResult(self, result):
-        self.signal.emit(result)
+    def emitResult(self, result):
+        self.signalScanResult.emit(result)
 
     def runCommand(self, cmd):
         output = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE,
-                                  stdout=subprocess.PIPE, startupinfo=startupInfo()).communicate()[0]
+                                  stdout=subprocess.PIPE, startupinfo=startup_info()).communicate()[0]
         output = output.decode('utf-8')
         return output
 
     def run(self):
-        for index, address in enumerate(self.addresses):
+        while True:
+            if not self.addresses:
+                time.sleep(0.5)
+                continue
+            index, address = self.addresses[0]
             # For each IP address in the subnet, run the ping command
-            result = {"IP Address": address, "TTL": "", "Ping": "", "Manufacturer": "", "MAC Address": ""}
+            result = {
+                "IP Address": address,
+                "TTL": "",
+                "Ping": "",
+                "Manufacturer": "",
+                "MAC Address": ""
+            }
             address = str(address)
             cmd = self.pingCommand(address)
             out = self.runCommand(cmd)
@@ -209,5 +338,9 @@ class PingAddress(QtCore.QThread):
                     result["MAC Address"] = LookupMacAddress(address)
                 if self.checkManufacturer:
                     result["Manufacturer"] = LookupManufacturers(result["MAC Address"])
-            self.returnResult(result)
-        self.exit()
+
+            self.emitResult(result)
+            try:
+                del self.addresses[0]
+            except IndexError:
+                pass
