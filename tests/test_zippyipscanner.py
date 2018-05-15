@@ -7,13 +7,6 @@ from __future__ import unicode_literals
 import pytest
 import sys
 import os.path
-from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
-                             QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
-                             QCheckBox, QComboBox, QToolButton, QLabel, QSpinBox,
-                             QTreeView, QAction)
-from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
-
 PATH = os.path.realpath(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(PATH)))
 
@@ -71,7 +64,6 @@ def test_scanParams(qtbot):
     r = window.scanParams
     assert isinstance(r, dict)
 
-
 def test_appPath(qtbot):
     window = zippyipscanner.MainWindow()
     qtbot.addWidget(window)
@@ -84,28 +76,26 @@ def test_config(qtbot):
     r = window.config
     assert isinstance(r, dict)
         
-def test_appendIpEntry(qtbot):
+def test_slotScanIp(qtbot):
     window = zippyipscanner.MainWindow()
     qtbot.addWidget(window)
-    r = window.appendIpEntry({"IP Address": "Bar"})
+    r = window.slotScanIp({"IP Address": "Bar"})
         
 def test_clearIpListItems(qtbot):
     window = zippyipscanner.MainWindow()
     qtbot.addWidget(window)
-    r = window.appendIpEntry({"IP Address": "Bar"})
+    r = window.slotScanIp({"IP Address": "Bar"})
     assert window.ipModel.rowCount() == 1
         
 def test_cleanScan(qtbot):
     window = zippyipscanner.MainWindow()
     qtbot.addWidget(window)
     r = window.cleanScan()    
-        
-def test_parseIpString(qtbot):
+
+def test_setScanIcons(qtbot):
     window = zippyipscanner.MainWindow()
     qtbot.addWidget(window)
-    r = window.parseIpString("192.168.0.1")
-    assert r == ["192.168.0.1"]
-        
+    window.setScanIcons()
         
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main()
