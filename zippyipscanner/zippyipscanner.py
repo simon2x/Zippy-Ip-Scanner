@@ -23,7 +23,9 @@ import sys
 import json
 import logging
 from functools import partial
+
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSignal, pyqtSlot)
+from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
                              QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
                              QCheckBox, QComboBox, QToolButton, QLabel, QSpinBox,

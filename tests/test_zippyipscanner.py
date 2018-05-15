@@ -57,6 +57,10 @@ def test_isScanning(qtbot):
     qtbot.addWidget(window)
     r = window.isScanning
     assert isinstance(r, bool)
+
+def test_appDefaults(qtbot):
+    window = zippyipscanner.MainWindow()
+    qtbot.addWidget(window)
         
 def test_scanParams(qtbot):
     window = zippyipscanner.MainWindow()

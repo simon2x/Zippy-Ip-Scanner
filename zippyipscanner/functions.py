@@ -133,6 +133,20 @@ class ParseIpRange(QtCore.QThread):
             return
 
 
+def on_windows():
+    return os.name == "nt"
+
+
+def startupInfo():
+    """Configure subprocess to hide the console window"""
+    if on_windows():
+        info = subprocess.STARTUPINFO()
+        info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        info.wShowWindow = subprocess.SW_HIDE
+        return info
+    return None
+
+
 class LookupHostname(QtCore.QThread):
 
     signalHostnameResult = pyqtSignal(dict)
@@ -324,6 +338,7 @@ class PingAddress(QtCore.QThread):
                     result["MAC Address"] = LookupMacAddress(address)
                 if self.checkManufacturer:
                     result["Manufacturer"] = LookupManufacturers(result["MAC Address"])
+
             self.emitResult(result)
             try:
                 del self.addresses[0]
