@@ -23,7 +23,7 @@ import sys
 import json
 import logging
 from functools import partial
-
+from collections import namedtuple
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot, pyqtSignal)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
                              QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
@@ -256,22 +256,27 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def createMenuBar(self):
-        exitAction = QAction("&Exit", self)
-        exitAction.setShortcut("Ctrl+Q")
-        exitAction.setStatusTip('Exit application...')
-        exitAction.triggered.connect(self.close)
-
-        aboutAction = QAction("&About", self)
-        aboutAction.setShortcut("Ctrl+F1")
-        aboutAction.setStatusTip('About')
-        aboutAction.triggered.connect(self.showAbout)
-
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('&File')
-        fileMenu.addAction(exitAction)
-
+        settingsMenu = mainMenu.addMenu('&Settings')
+        scanMenu = settingsMenu.addMenu('&Clear Scan History')
         helpMenu = mainMenu.addMenu('&Help')
-        helpMenu.addAction(aboutAction)
+        menuItem = namedtuple("MenuItem", ["name", "shortcut", "tip", "event"])
+        items = [
+            (menuItem("&Exit", "Ctrl+Q", "Exit application...", self.close), fileMenu),
+            (menuItem("&Preferences", "Ctrl+P", "Open preferences...", self.showAbout), settingsMenu),
+            (menuItem("&About", "Ctrl+F1", "About", self.showAbout), helpMenu),
+            
+            (menuItem("&All", "", "Clears and resets scan history", self.showAbout), scanMenu),
+            (menuItem("&Range Scan", "", "Clears and resets range scan History", self.showAbout), scanMenu),
+            (menuItem("&Custom IP Scan", "", "Clears and resets custom scan history", self.showAbout), scanMenu),
+        ]
+        for item, menu in items:        
+            m = QAction(item.name, self)
+            m.setShortcut(item.shortcut)
+            m.setStatusTip(item.tip)
+            m.triggered.connect(item.event)
+            menu.addAction(m)
 
     def createIpModel(self, parent):
         model = QStandardItemModel(0, 6, parent)
