@@ -133,10 +133,6 @@ class ParseIpRange(QtCore.QThread):
             return
 
 
-def on_windows():
-    return os.name == "nt"
-
-
 def startupInfo():
     """Configure subprocess to hide the console window"""
     if on_windows():
