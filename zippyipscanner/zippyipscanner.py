@@ -39,6 +39,7 @@ if __name__ != "__main__":
 
 import functions
 from about import AboutDialog
+from preferences import PreferencesDialog
 from version import __version__
 
 SYS_ARGS = {
@@ -264,14 +265,13 @@ class MainWindow(QMainWindow):
         menuItem = namedtuple("MenuItem", ["name", "shortcut", "tip", "event"])
         items = [
             (menuItem("&Exit", "Ctrl+Q", "Exit application...", self.close), fileMenu),
-            (menuItem("&Preferences", "Ctrl+P", "Open preferences...", self.showAbout), settingsMenu),
+            (menuItem("&Preferences", "Ctrl+P", "Open preferences...", self.showPreferences), settingsMenu),
             (menuItem("&About", "Ctrl+F1", "About", self.showAbout), helpMenu),
-            
             (menuItem("&All", "", "Clears and resets scan history", self.showAbout), scanMenu),
             (menuItem("&Range Scan", "", "Clears and resets range scan History", self.showAbout), scanMenu),
             (menuItem("&Custom IP Scan", "", "Clears and resets custom scan history", self.showAbout), scanMenu),
         ]
-        for item, menu in items:        
+        for item, menu in items:
             m = QAction(item.name, self)
             m.setShortcut(item.shortcut)
             m.setStatusTip(item.tip)
@@ -547,6 +547,11 @@ class MainWindow(QMainWindow):
         """Show the About wndow"""
         logging.info("Menubar->Help->showAbout")
         AboutDialog(self)
+
+    def showPreferences(self):
+        """Show the About wndow"""
+        logging.info("Menubar->Settings->showPreferences")
+        PreferencesDialog(self, config=self.config)
 
     def sendScanParams(self):
         # we cannot get Manufacturer if user disables MAC
