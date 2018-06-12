@@ -685,14 +685,8 @@ def main():
     sys.exit(app.exec_())
 
 
-try:
-    file = open('.devmode.txt', 'r')
-    file.close()
-    DEVMODE = True
-except Exception:
-    DEVMODE = False
-
-
+DEVMODE = None
+DEVMODE = True
 if __name__ == '__main__':
     if not DEVMODE:
         main()
@@ -701,7 +695,5 @@ if __name__ == '__main__':
         print([os.path.join(os.path.dirname(__file__), 'forms', 'generate_pyui.pyw')])
         logging.basicConfig(level=logging.DEBUG)
         call([sys.executable, os.path.join(os.path.dirname(__file__), 'forms', 'generate_pyui.pyw')])
-        os.chdir('..')
         call([sys.executable, os.path.join(os.path.dirname(__file__), '..', 'setup.py'), 'test'])
-        os.chdir('zippyipscanner')
         main()
