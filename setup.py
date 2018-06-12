@@ -1,16 +1,14 @@
-"""A setuptools based setup module for Zippy-Ip-Scanner"""
 #!/usr/bin/env python
+"""A setuptools based setup module for Zippy-Ip-Scanner"""
+
 # -*- coding: utf-8 -*-
 
 from codecs import open
-from os import path, system
-from setuptools import setup, find_packages
-import setuptools.command.build_py
+from os import path
+from setuptools import setup, find_packages, Command
+from subprocess import call
 from zippyipscanner.version import __version__
 
-def on_windows():
-    """Returns True if OS is Windows."""
-    return os.name == "nt"
 
 try:
     here = path.abspath(path.dirname(__file__))
@@ -22,7 +20,7 @@ try:
 except FileNotFoundError:
     readme = ""
     history = ""
-    
+
 test_requirements = [
     # TODO: put package test requirements here
 ]
@@ -30,6 +28,19 @@ test_requirements = [
 package_data = {
     'sample': ['package_data.dat'],
 }
+
+
+class TestCommand(Command):
+    user_options = []
+
+    def initialize_options(self):
+        return
+
+    def finalize_options(self):
+        return
+
+    def run(self):
+        call(['flake8', '--append-config=".flake8.ini"'])
 
 
 setup(
@@ -47,21 +58,15 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=find_packages(exclude=['docs', 'resources', 'snap', 'tests*']),
+    packages=find_packages('', exclude=['docs', 'resources', 'snap', 'tests*']),
 
-    package_data = {
+    package_data={
         '': ["images/*.png", "splash.png", "zippyipscanner.ico"],
     },
 
-    data_files = [
-        ('share/applications', ['data/ZippyIpScanner.desktop']),
-        ('share/zippyipscanner', ['zippyipscanner/zippyipscanner.ico']),
-    ],
-
-    # https://packaging.python.org/en/latest/requirements.html
-    install_requires =  [
-        "pyqt5",
-    ],
+    data_files=[('share/applications', ['data/ZippyIpScanner.desktop']),
+                ('share/zippyipscanner', ['zippyipscanner/zippyipscanner.ico'])],
+    install_requires=["pyqt5"],
 
     license="GPLv3",
 
@@ -75,11 +80,8 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
 
-    test_suite='tests',
+    # test_suite='tests',
+    cmdclass={'test':TestCommand},
     tests_require=test_requirements,
-    entry_points={
-          'gui_scripts': [
-              'zippyscan = zippyipscanner.zippyipscanner:main'
-          ]
-      },
+    entry_points={'gui_scripts': ['zippyscan = zippyipscanner.zippyipscanner:main']},
 )
