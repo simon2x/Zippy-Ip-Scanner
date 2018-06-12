@@ -40,7 +40,7 @@ class TestCommand(Command):
         return
 
     def run(self):
-        call(['flake8', '--append-config=".flake8.ini"'])
+        call(['flake8', '--append-config=.flake8.ini'])
 
 
 setup(
