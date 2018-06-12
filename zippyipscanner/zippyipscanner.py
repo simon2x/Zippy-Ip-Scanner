@@ -47,6 +47,7 @@ if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
 import functions
 from about import AboutDialog
 from dialogs.settings import SettingsDialog
+from dialogs.checkforupdates import CheckForUpdates
 from version import __version__
 from forms.uimainwindow import Ui_MainWindow
 
@@ -265,6 +266,9 @@ class MainWindow(QMainWindow):
         del params['Hostname']
         return params
 
+    def checkForUpdates(self):
+        CheckForUpdates(self)
+        
     def clearIpListItems(self):
         logging.info('MainWindow->clearIpListItems')
         self.ipModel.removeRows(0, self.ipModel.rowCount())
@@ -357,6 +361,8 @@ class MainWindow(QMainWindow):
             self.close()
         elif text == 'Scan Range':
             self.clearIpListItems()
+        elif text == 'Check For Updates':
+            self.checkForUpdates()
         elif text == 'Custom Scan':
             self.clearIpListItems()
         elif text == 'Settings':
@@ -697,6 +703,7 @@ if __name__ == '__main__':
     if not DEVMODE:
         main()
     else:
+        print('DEVMODE')
         from subprocess import call
         print([os.path.join(os.path.dirname(__file__), 'forms', 'generate_pyui.pyw')])
         logging.basicConfig(level=logging.DEBUG)
