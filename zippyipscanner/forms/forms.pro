@@ -33,4 +33,5 @@ FORMS += \
     settingsdialog.ui \
     aboutdialog.ui \
     submitissuedialog.ui \
-    androidpermissionsdialog.ui
+    androidpermissionsdialog.ui \
+    checkforupdates.ui
