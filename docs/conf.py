@@ -166,6 +166,3 @@ texinfo_documents = [
      author, 'ZippyIPScanner', 'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-
