@@ -9,7 +9,7 @@ Zippy_Ip_Scanner.egg-info/*
 zippyipscanner/zippy_ip_scanner.egg-info/*
 .coverage
 config.json
-
+.devmode.txt
 /docs/html
 /docs/*.txt
 #/docs/*.rst
