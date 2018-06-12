@@ -20,3 +20,7 @@ config.json
 /docs/_templates/gallery.html
 /docs/build
 /docs/_build
+zippyipscanner/build/zippyipscanner64/base_library.zip
+*.toc
+zippyipscanner/build/zippyipscanner64/xref-zippyipscanner64.html
+build/
