@@ -61,7 +61,7 @@ class Ui_CheckForUpdates(object):
 
     def retranslateUi(self, CheckForUpdates):
         _translate = QtCore.QCoreApplication.translate
-        CheckForUpdates.setWindowTitle(_translate("CheckForUpdates", "About Buildertron..."))
+        CheckForUpdates.setWindowTitle(_translate("CheckForUpdates", "Check For Updates"))
         self.labelCheckManual.setText(_translate("CheckForUpdates", "Check Releases Manually"))
         self.label.setText(_translate("CheckForUpdates", "Current Version:"))
         self.labelCurrentVersion.setText(_translate("CheckForUpdates", "v0.0.0"))
