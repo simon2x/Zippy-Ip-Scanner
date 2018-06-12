@@ -26,7 +26,6 @@ from functools import partial
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot, pyqtSignal)
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplashScreen)
 from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
-from base.filteredmodel import FilteredModel
 
 
 appPath = ''
@@ -50,6 +49,8 @@ from dialogs.settings import SettingsDialog
 from dialogs.checkforupdates import CheckForUpdates
 from version import __version__
 from forms.uimainwindow import Ui_MainWindow
+from base.filteredmodel import FilteredModel
+
 
 SYS_ARGS = {
     '--verbose': 0,

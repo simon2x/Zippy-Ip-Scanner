@@ -3,6 +3,8 @@
 History
 -------
 
+1.1.0
+    - Fix pypi support
 1.0.2
     - Implement filtering of alive results
     - Added settings dialog
