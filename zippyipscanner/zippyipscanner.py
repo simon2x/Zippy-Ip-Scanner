@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*
-"""
+'''
 @author Simon Wu <swprojects@runbox.com>
 Copyright (c) 2018 by Simon Wu <Zippy Ip Scanner>
 
@@ -16,31 +16,39 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>
-"""
+'''
 
 import os
 import sys
 import json
 import logging
 from functools import partial
-from collections import namedtuple
 from PyQt5.QtCore import (Qt, QSize, QTimer, pyqtSlot, pyqtSignal)
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QSplashScreen,
-                             QGridLayout, QHBoxLayout, QVBoxLayout, QGroupBox,
-                             QCheckBox, QComboBox, QToolButton, QLabel, QSpinBox,
-                             QTreeView, QAction)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplashScreen)
 from PyQt5.QtGui import (QIcon, QPixmap, QStandardItemModel)
+from base.filteredmodel import FilteredModel
 
-appPath = ""
-if __name__ != "__main__":
+
+appPath = ''
+if __name__ != '__main__':
     # this allows us to import relatively
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-    appPath = os.path.dirname(os.path.realpath(__file__)) + "/"
+    appPath = os.path.dirname(os.path.realpath(__file__)) + '/'
+
+
+if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+
+
+if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
 
 import functions
 from about import AboutDialog
-from preferences import PreferencesDialog
+from dialogs.settings import SettingsDialog
 from version import __version__
+from forms.uimainwindow import Ui_MainWindow
 
 SYS_ARGS = {
     "--verbose": 0,
