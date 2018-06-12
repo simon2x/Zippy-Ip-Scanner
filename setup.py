@@ -4,18 +4,22 @@
 # -*- coding: utf-8 -*-
 
 from codecs import open
-from os import path
+from os import chdir
+from os.path import abspath, dirname, join
 from setuptools import setup, find_packages, Command
 from subprocess import call
+
+
+chdir(abspath(dirname(__file__)))
 from zippyipscanner.version import __version__
 
 
 try:
-    here = path.abspath(path.dirname(__file__))
-    with open(path.join(here, 'README.rst'), encoding='utf-8') as readme_file:
+    here = abspath(dirname(__file__))
+    with open(join(here, 'README.rst'), encoding='utf-8') as readme_file:
         readme = readme_file.read()
 
-    with open(path.join(here, 'HISTORY.rst'), encoding='utf-8') as history_file:
+    with open(join(here, 'HISTORY.rst'), encoding='utf-8') as history_file:
         history = history_file.read().replace('.. :changelog:', '')
 except FileNotFoundError:
     readme = ""

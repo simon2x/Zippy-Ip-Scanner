@@ -268,7 +268,7 @@ class MainWindow(QMainWindow):
 
     def checkForUpdates(self):
         CheckForUpdates(self)
-        
+
     def clearIpListItems(self):
         logging.info('MainWindow->clearIpListItems')
         self.ipModel.removeRows(0, self.ipModel.rowCount())
