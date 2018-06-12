@@ -81,7 +81,7 @@ setup(
     ],
 
     # test_suite='tests',
-    cmdclass={'test':TestCommand},
+    cmdclass={'test': TestCommand},
     tests_require=test_requirements,
     entry_points={'gui_scripts': ['zippyscan = zippyipscanner.zippyipscanner:main']},
 )
