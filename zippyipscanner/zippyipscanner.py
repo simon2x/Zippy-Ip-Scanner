@@ -51,19 +51,20 @@ from version import __version__
 from forms.uimainwindow import Ui_MainWindow
 
 SYS_ARGS = {
-    "--verbose": 0,
+    '--verbose': 0,
 }
 # verbosity
 LOG_LEVELS = {
-    "1": 20,  # Info
-    "2": 10,  # Debug
-    "3": 30,  # Warning
-    "4": 40,  # Error
-    "5": 50,  # Critical
+    '1': 20,  # Info
+    '2': 10,  # Debug
+    '3': 30,  # Warning
+    '4': 40,  # Error
+    '5': 50,  # Critical
 }
 
-STOP_ICON = appPath + "images/stop.png"
-START_ICON = appPath + "images/start.png"
+STOP_ICON = appPath + 'images/stop.png'
+START_ICON = appPath + 'images/start.png'
+CLEAR_ICON = appPath + 'images/clear.png'
 MAX_HOSTNAME_CHECKS = 5
 TIMER_CHECK_MS = 100
 SPLASH_TIMEOUT = 1200
