@@ -27,7 +27,7 @@ except ImportError as error:
 class TestPingAddress(unittest.TestCase):
     
     def setUp(self):
-        self.scanParams = {"MAC Address": 2, "Manufacturer": 2}
+        self.scanParams = {"MAC Address": True, "Manufacturer": True}
         self.thread = functions.PingAddress(parent=None, scanParams=self.scanParams)
         
     def tearDown(self):
