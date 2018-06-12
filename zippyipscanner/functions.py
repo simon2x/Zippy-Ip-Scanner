@@ -253,11 +253,11 @@ class PingAddress(QtCore.QThread):
 
     @property
     def checkMac(self):
-        return self.scanParams["MAC Address"] == 2
+        return self.scanParams["MAC Address"] is True
 
     @property
     def checkManufacturer(self):
-        return self.scanParams["Manufacturer"] == 2
+        return self.scanParams["Manufacturer"] is True
 
     def extractMS(self, output):
         try:
